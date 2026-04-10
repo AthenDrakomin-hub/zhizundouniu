@@ -582,38 +582,41 @@ export default function App() {
             <img src="/images/ui/logo3.png" alt="Logo" loading="lazy" className="w-48 h-48 object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.8)] mix-blend-screen" />
           </div>
           
-          {/* Glass Card (White/Creamy tint like the screenshot) */}
-          <div className="w-full bg-white/95 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-white/50 flex flex-col items-center">
-            <h1 className="text-xl font-black text-center text-yellow-600 mb-8 tracking-widest drop-shadow-sm">
+          {/* Solid Premium Card (No transparency) */}
+          <div className="w-full bg-[#FDFBF7] rounded-[2rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.8)] border-4 border-[#E8DCC4] flex flex-col items-center relative overflow-hidden">
+            {/* Inner decorative border */}
+            <div className="absolute inset-2 border border-[#D4AF37]/30 rounded-[1.5rem] pointer-events-none" />
+            
+            <h1 className="text-2xl font-black text-center text-[#8B0000] mb-8 tracking-widest drop-shadow-sm relative z-10">
               至尊斗牛
             </h1>
 
-            <form onSubmit={handleJoin} className="w-full flex flex-col gap-5">
+            <form onSubmit={handleJoin} className="w-full flex flex-col gap-5 relative z-10">
               {/* Name Input */}
-              <div className="relative bg-[#5a5a5a] rounded-2xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border border-white/10 focus-within:ring-2 focus-within:ring-yellow-500/50 transition-all">
-                <span className="text-yellow-500 font-bold shrink-0 whitespace-nowrap text-sm">大名</span>
-                <div className="w-[1px] h-4 bg-white/20 mx-3 shrink-0" />
+              <div className="relative bg-[#4A4A4A] rounded-xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border-2 border-transparent focus-within:border-[#D4AF37] transition-colors">
+                <span className="text-[#D4AF37] font-bold shrink-0 whitespace-nowrap text-sm">大名</span>
+                <div className="w-[1px] h-4 bg-[#666666] mx-3 shrink-0" />
                 <input
                   type="text"
                   placeholder="请输入您的尊姓大名"
                   value={tempName}
                   onChange={e => setTempName(e.target.value)}
-                  className="w-full bg-transparent text-white text-sm font-bold outline-none placeholder:text-white/40 placeholder:font-normal"
+                  className="w-full bg-transparent text-white text-sm font-bold outline-none placeholder:text-[#999999] placeholder:font-normal"
                   required
                 />
               </div>
 
               {/* Room ID Input */}
-              <div className="relative bg-[#5a5a5a] rounded-2xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border border-white/10 focus-within:ring-2 focus-within:ring-yellow-500/50 transition-all">
-                <span className="text-yellow-500 font-bold shrink-0 whitespace-nowrap text-sm">房号</span>
-                <div className="w-[1px] h-4 bg-white/20 mx-3 shrink-0" />
+              <div className="relative bg-[#4A4A4A] rounded-xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border-2 border-transparent focus-within:border-[#D4AF37] transition-colors">
+                <span className="text-[#D4AF37] font-bold shrink-0 whitespace-nowrap text-sm">房号</span>
+                <div className="w-[1px] h-4 bg-[#666666] mx-3 shrink-0" />
                 <input
                   type="text"
                   placeholder="输入6位房间钥匙"
                   value={roomId}
                   onChange={e => setRoomId(e.target.value.toUpperCase())}
                   maxLength={6}
-                  className="w-full bg-transparent text-yellow-400 text-lg font-black tracking-[0.2em] outline-none placeholder:text-white/40 placeholder:font-normal placeholder:tracking-normal uppercase"
+                  className="w-full bg-transparent text-[#F2C94C] text-lg font-black tracking-[0.2em] outline-none placeholder:text-[#999999] placeholder:font-normal placeholder:tracking-normal uppercase"
                   required
                 />
                 {roomId.length === 6 && tempName && (
@@ -621,9 +624,9 @@ export default function App() {
                     initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
                     animate={{ opacity: 1, scale: 1, rotate: 0 }}
                     type="submit" 
-                    className="absolute right-2 p-2.5 bg-gradient-to-b from-yellow-400 to-yellow-600 text-black rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                    className="absolute right-2 p-2.5 bg-gradient-to-b from-[#F2C94C] to-[#D4AF37] text-[#4A0000] rounded-lg shadow-md hover:brightness-110 active:scale-95 transition-all border border-[#FFF5D1]"
                   >
-                    <ArrowRight className="w-5 h-5 stroke-[3]" />
+                    <ArrowRight className="w-6 h-6 stroke-[3]" />
                   </motion.button>
                 )}
               </div>
