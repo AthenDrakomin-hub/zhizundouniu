@@ -55,9 +55,9 @@ jobs:
             sudo npm install pm2 tsx -g
 
             # 5. 重启项目 (使用 --update-env 刷新环境变量)
-            # 【重要修改】：使用 npx tsx server.ts 保证从本地 node_modules 寻找环境
-            pm2 delete supreme-bull || true
-            pm2 start "npx tsx server.ts" --name "supreme-bull" --update-env
+            # 【重要修改】：使用 --interpreter npx --interpreter-args "tsx" 来完美运行 ts
+            pm2 delete all || true
+            pm2 start server.ts --name "zhizundouniu" --interpreter npx --interpreter-args "tsx" --update-env
             pm2 save
             
             # 6. 重启 Nginx 确保通道顺畅
