@@ -1,80 +1,62 @@
-name: Deploy to Japan Server
+name: 至尊斗牛自动部署
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ] # 确保这是你推送的分支名
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: 检出代码
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
+      - name: 安装 Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          # 【重要修改】：Vite 6 和 Tailwind 必须要求 Node 20，Node 18 会报错 CustomEvent is not defined
+          node-version: '20'
 
-    - name: Install Dependencies
-      run: |
-        rm -rf node_modules package-lock.json @tailwindcss
-        npm install --legacy-peer-deps
-        cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps
+      - name: 部署到日本服务器
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}     # 你的 IP: 45.32.248.214
+          username: ${{ secrets.SERVER_USER }} # 通常是 root
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # 1. 确保服务器环境有正确的 Node.js v20
+            if [[ $(node -v) != v20* ]]; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
 
-    - name: Build Projects
-      run: |
-        npm run build
-        cd admin-client && npm run build
-
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v0.1.10
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT || '22' }}
-        script: |
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          
-          # If node/npm/pm2 are not installed, install them (assuming Ubuntu/Debian)
-          if ! command -v node &> /dev/null; then
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm install 20
-            nvm use 20
-            nvm alias default 20
-          fi
-          
-          if ! command -v pm2 &> /dev/null; then
-            npm install -g pm2 ts-node typescript
-          fi
-
-          DEPLOY_DIR="/var/www/zhizundouniu"
-          
-          # Ensure directory exists and clone/pull
-          if [ ! -d "$DEPLOY_DIR/.git" ]; then
-            sudo mkdir -p $DEPLOY_DIR
-            sudo chown -R $USER:$USER $DEPLOY_DIR
-            git clone https://github.com/AthenDrakomin-hub/zhizundouniu.git $DEPLOY_DIR
-            cd $DEPLOY_DIR
-          else
+            # 2. 进入项目目录（适配您服务器上的真实目录 /var/www/zhizundouniu）
+            DEPLOY_DIR="/var/www/zhizundouniu"
+            if [ ! -d "$DEPLOY_DIR/.git" ]; then
+              sudo mkdir -p $DEPLOY_DIR
+              sudo chown -R $USER:$USER $DEPLOY_DIR
+              git clone https://github.com/AthenDrakomin-hub/zhizundouniu.git $DEPLOY_DIR
+            fi
             cd $DEPLOY_DIR
             git pull origin main
-          fi
-          
-          # Install dependencies
-          rm -rf node_modules package-lock.json @tailwindcss
-          npm install --legacy-peer-deps
-          cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && cd ..
-          
-          # Build
-          npm run build
-          cd admin-client && npm run build && cd ..
-          
-          # Restart the service
-          pm2 restart zhizundouniu || pm2 start ts-node --name "zhizundouniu" -- server.ts
-          pm2 save
+
+            # 3. 安装依赖并构建
+            # 【重要保留】：保留了解决 npm Tailwind Bug 的清除指令和 --legacy-peer-deps
+            rm -rf node_modules package-lock.json @tailwindcss
+            npm install --legacy-peer-deps
+            cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && cd ..
+            
+            npm run build
+            cd admin-client && npm run build && cd ..
+            
+            # 4. 确保安装了 PM2 和 TS 运行环境
+            sudo npm install pm2 tsx -g
+
+            # 5. 重启项目 (使用 --update-env 刷新环境变量)
+            # 【重要修改】：项目入口文件是 server.ts，不是 index.js，需要用 tsx 运行
+            pm2 delete supreme-bull || true
+            pm2 start tsx --name "supreme-bull" --update-env -- server.ts
+            pm2 save
+            
+            # 6. 重启 Nginx 确保通道顺畅
+            sudo systemctl restart nginx
