@@ -2,55 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 开启发财红模式：客户端主色调覆盖 */
-body {
-  background: radial-gradient(circle, #8b0000 0%, #4b0000 100%) !important;
-  color: #fffbe6;
-}
-
-/* 覆盖游戏内的绿色桌布为红色/金色基调 */
-.bg-emerald-950, .bg-emerald-900, .bg-emerald-800 {
-  background-color: transparent !important;
-}
-
-/* 游戏区域的卡片、弹窗和列表底色变为象牙白 */
-.bg-black\/40, .bg-slate-900, .bg-slate-800 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border: 1px solid #ffd700 !important;
-  color: #333 !important;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-}
-
-/* 文字清晰化 */
-.text-white, .text-emerald-100 {
-  color: #333 !important;
-}
-
-.text-emerald-400, .text-yellow-400 {
-  color: #d32f2f !important;
-  font-weight: 900;
-}
-
-.text-slate-400 {
-  color: #666 !important;
-}
-
-/* 结算分数颜色强落差 */
-.text-emerald-500 {
-  color: #ff0000 !important; /* 赢钱用鲜红 */
-  font-weight: 900;
-  text-shadow: 1px 1px 2px rgba(255,215,0,0.5);
-}
-
-.text-red-500 {
-  color: #555 !important; /* 输钱用深灰，不要跟大红色抢视觉 */
-}
-
-/* 金色边框 */
-.border-emerald-500\/30, .border-white\/10 {
-  border-color: rgba(255, 215, 0, 0.5) !important;
-}
-
 @layer utilities {
   .backface-hidden {
     backface-visibility: hidden;
@@ -89,7 +40,15 @@ body {
     animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
   }
   .mega-win {
-    box-shadow: inset 0 0 50px #ffd700, 0 0 30px #ffd700 !important;
-    border-color: #ffd700 !important;
+    box-shadow: inset 0 0 50px rgba(212, 175, 55, 0.8), 0 0 30px rgba(212, 175, 55, 0.6);
+    border-color: #D4AF37;
   }
+}
+
+/* Base styles for the dark casino theme */
+body {
+  background-color: #111;
+  color: #fff;
+  font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

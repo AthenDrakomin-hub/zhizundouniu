@@ -287,7 +287,6 @@ async function setupGameServer(io) {
       const newRoom = {
         id: roomId,
         players: [],
-        spectators: [],
         status: "waiting",
         // waiting, dealing_4, bidding, betting, dealing_5, playing, rolling_dice, finished, game_over
         dealerId: null,
@@ -333,22 +332,11 @@ async function setupGameServer(io) {
             room.players[playerIndex].isDisconnected = true;
           } else {
             room.players.splice(playerIndex, 1);
-            if (room.players.length === 0 && (!room.spectators || room.spectators.length === 0)) {
+            if (room.players.length === 0) {
               rooms.delete(roomId);
             }
           }
           broadcastRoomUpdate(roomId);
-          io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
-        } else if (room.spectators) {
-          const specIndex = room.spectators.findIndex((s) => s.socketId === socket.id);
-          if (specIndex !== -1) {
-            room.spectators.splice(specIndex, 1);
-            if (room.players.length === 0 && room.spectators.length === 0) {
-              rooms.delete(roomId);
-            }
-            broadcastRoomUpdate(roomId);
-            io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
-          }
         }
       }
     });
@@ -381,7 +369,6 @@ async function setupGameServer(io) {
         room = {
           id: roomId,
           players: [],
-          spectators: [],
           status: "waiting",
           dealerId: null,
           lastWinnerId: null,

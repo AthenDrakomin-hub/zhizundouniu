@@ -185,7 +185,6 @@ export async function setupGameServer(io: Server) {
       const newRoom = {
         id: roomId,
         players: [],
-        spectators: [],
         status: 'waiting', // waiting, dealing_4, bidding, betting, dealing_5, playing, rolling_dice, finished, game_over
         dealerId: null,
         lastWinnerId: null,
@@ -233,22 +232,11 @@ export async function setupGameServer(io: Server) {
           } else {
              // If waiting or finished, just remove them
              room.players.splice(playerIndex, 1);
-             if (room.players.length === 0 && (!room.spectators || room.spectators.length === 0)) {
+             if (room.players.length === 0) {
                rooms.delete(roomId);
              }
           }
           broadcastRoomUpdate(roomId);
-          io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
-        } else if (room.spectators) {
-          const specIndex = room.spectators.findIndex((s: any) => s.socketId === socket.id);
-          if (specIndex !== -1) {
-            room.spectators.splice(specIndex, 1);
-            if (room.players.length === 0 && room.spectators.length === 0) {
-              rooms.delete(roomId);
-            }
-            broadcastRoomUpdate(roomId);
-            io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
-          }
         }
       }
     });
@@ -290,7 +278,6 @@ export async function setupGameServer(io: Server) {
         room = { 
           id: roomId, 
           players: [], 
-          spectators: [],
           status: 'waiting', 
           dealerId: null,
           lastWinnerId: null,

@@ -42,25 +42,26 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleOpenModal}
-            className="relative h-32 rounded-2xl p-4 flex flex-col justify-end overflow-hidden cursor-pointer shadow-lg border border-[#D4AF37]/50"
+            className="relative h-32 rounded-2xl p-4 flex flex-col justify-end overflow-hidden cursor-pointer shadow-lg border-2 border-[#D4AF37]/80"
             style={{
-              background: 'linear-gradient(135deg, #2a1f1f 0%, #4a2f2f 100%)',
-              boxShadow: 'inset 0 0 20px rgba(212, 175, 55, 0.2), 0 10px 20px rgba(0,0,0,0.5)'
+              background: 'linear-gradient(135deg, #1A8A7A 0%, #0A4F46 100%)',
+              boxShadow: 'inset 0 0 30px rgba(212, 175, 55, 0.3), 0 10px 20px rgba(0,0,0,0.5)'
             }}
           >
             {/* Dark gold stroke & glow */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#D4AF37]/10 to-transparent pointer-events-none" />
-            <div className="absolute inset-0 border border-[#D4AF37]/30 rounded-2xl pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#D4AF37]/20 to-transparent pointer-events-none" />
             
-            <h3 className="text-xl font-black text-[#FDFBF7] drop-shadow-md z-10">{game.name}</h3>
+            <h3 className="text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] z-10 text-center uppercase tracking-widest bg-gradient-to-b from-[#FFF] to-[#F2C94C] bg-clip-text text-transparent" style={{ WebkitTextStroke: '1px #4A2F00' }}>
+              {game.name}
+            </h3>
             {game.tag && (
-              <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-md z-10">
+              <div className="absolute top-2 left-2 bg-gradient-to-b from-[#FF4500] to-[#8B0000] border border-[#FFD700] text-[#FFF] text-[10px] px-2 py-0.5 rounded-full font-black shadow-md z-10">
                 {game.tag}
               </div>
             )}
-            
+
             {/* Background icon/pattern */}
-            <Gamepad2 className="absolute top-4 right-4 w-12 h-12 text-[#D4AF37]/20 pointer-events-none" />
+            <Gamepad2 className="absolute top-4 right-4 w-12 h-12 text-[#D4AF37]/30 pointer-events-none drop-shadow-md" />
           </motion.div>
         ))}
       </div>
@@ -68,19 +69,25 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   );
 
   const renderRoom = () => (
-    <div className="flex-1 flex flex-col pt-4 px-4 pb-24">
-      <div className="flex justify-between mb-4">
-        <button className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full border border-white/10 text-sm">
-          <Search className="w-4 h-4" /> 切换
+    <div className="flex-1 flex flex-col pt-4 px-4 pb-24 relative">
+      <div className="flex justify-between items-center z-10 mb-4">
+        <button className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
+          <Search className="w-4 h-4 text-[#D4AF37]" /> 切换
         </button>
-        <button className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full border border-white/10 text-sm">
-          <RefreshCw className="w-4 h-4" /> 刷新
+        <button className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
+          刷新 <RefreshCw className="w-4 h-4 text-[#D4AF37]" />
         </button>
       </div>
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-white/50 text-sm tracking-widest font-bold bg-black/30 p-8 rounded-3xl border border-white/5">
-          <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          加入公会后，等待会长开房
+      <div className="absolute top-16 right-4 z-10">
+        <button className="bg-black/50 backdrop-blur-md text-[#D4AF37] border border-[#D4AF37]/50 text-xs px-3 py-1.5 rounded-full shadow-lg active:scale-95">
+          复制链接
+        </button>
+      </div>
+      <div className="flex-1 flex items-center justify-center relative z-10">
+        <div className="text-center">
+          <h2 className="text-[#FFD700] text-xl font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest bg-black/40 px-6 py-3 rounded-full border border-white/10 backdrop-blur-sm">
+            加入公会后，等待会长开房
+          </h2>
         </div>
       </div>
     </div>
@@ -89,29 +96,36 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   const renderMine = () => (
     <div className="flex-1 flex flex-col pt-4 px-4 pb-24 gap-4 overflow-y-auto">
       {/* Profile Card */}
-      <div className="bg-gradient-to-r from-[#2a1f1f] to-[#4a2f2f] rounded-3xl p-6 border border-[#D4AF37]/30 shadow-xl flex items-center gap-4">
-        <div className="w-20 h-20 rounded-full border-2 border-[#D4AF37] p-1 bg-black/50">
-          <img src="/images/ui/head_boy.png" alt="avatar" className="w-full h-full rounded-full object-cover" />
+      <div className="bg-gradient-to-r from-[#3C1B22] to-[#5C2D38] rounded-2xl p-4 border border-[#D4AF37]/50 shadow-[0_10px_20px_rgba(0,0,0,0.5)] flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl border-2 border-[#D4AF37] p-0.5 bg-black/50 shadow-inner">
+            <img src="/images/ui/head_boy.png" alt="avatar" className="w-full h-full rounded-xl object-cover" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-white drop-shadow-md">{tempName || '默认玩家'}</h2>
+            <p className="text-xs text-[#D4AF37] font-medium mt-1 tracking-widest">ID: {Math.floor(Math.random() * 9000000) + 1000000}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-black text-white">{tempName || '默认玩家'}</h2>
-          <p className="text-sm text-[#D4AF37] font-medium mt-1">ID: 888888</p>
+        <div className="flex flex-col gap-2">
+          <button className="bg-gradient-to-r from-[#4A2F2F] to-[#2A1F1F] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95">复制 ID</button>
+          <button className="bg-gradient-to-r from-[#8B0000] to-[#4B0000] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95">修改头像</button>
         </div>
       </div>
 
       {/* Settings List */}
-      <div className="bg-black/40 rounded-3xl border border-white/10 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-white/5 cursor-pointer hover:bg-white/5">
-          <div className="flex items-center gap-3 text-white/90">
-            <MessageSquare className="w-5 h-5 text-blue-400" />
-            <span className="font-bold">聊天室</span>
+      <div className="flex flex-col gap-3 mt-2">
+        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3 text-white">
+            <MessageSquare className="w-5 h-5 text-[#87CEEB]" />
+            <span className="font-bold tracking-widest">聊天室</span>
           </div>
+          <ArrowRight className="w-4 h-4 text-white/30" />
         </div>
-        
-        <div className="flex items-center justify-between p-4 border-b border-white/5">
-          <div className="flex items-center gap-3 text-white/90">
-            <Settings className="w-5 h-5 text-purple-400" />
-            <span className="font-bold">管理功能</span>
+
+        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 shadow-lg">
+          <div className="flex items-center gap-3 text-white">
+            <Settings className="w-5 h-5 text-[#FFD700]" />
+            <span className="font-bold tracking-widest">管理功能</span>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" onChange={(e) => {
@@ -120,23 +134,35 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
                 setTimeout(() => e.target.checked = false, 500); // reset visually
               }
             }} />
-            <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+            <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F2C94C]"></div>
           </label>
         </div>
 
-        <div className="flex items-center justify-between p-4 border-b border-white/5 cursor-pointer hover:bg-white/5">
-          <div className="flex items-center gap-3 text-white/90">
-            <Smartphone className="w-5 h-5 text-emerald-400" />
-            <span className="font-bold">修改手机</span>
+        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3 text-white">
+            <Smartphone className="w-5 h-5 text-[#98FB98]" />
+            <span className="font-bold tracking-widest">修改手机</span>
           </div>
+          <ArrowRight className="w-4 h-4 text-white/30" />
         </div>
 
-        <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5">
-          <div className="flex items-center gap-3 text-white/90">
-            <Package className="w-5 h-5 text-yellow-500" />
-            <span className="font-bold">房卡包</span>
+        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3 text-white">
+            <Shield className="w-5 h-5 text-[#87CEEB]" />
+            <span className="font-bold tracking-widest">密钥设置</span>
           </div>
-          <span className="text-sm text-white/50">0张</span>
+          <ArrowRight className="w-4 h-4 text-white/30" />
+        </div>
+
+        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3 text-white">
+            <Package className="w-5 h-5 text-[#FFD700]" />
+            <span className="font-bold tracking-widest">房卡包</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-white/70 font-bold">剩余0张</span>
+            <ArrowRight className="w-4 h-4 text-white/30" />
+          </div>
         </div>
       </div>
     </div>
@@ -146,8 +172,8 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
     <div className="min-h-screen bg-[#1a1a1a] text-white flex flex-col relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 z-0">
-        <img src="/images/ui/qian.png" alt="background" className="w-full h-full object-cover opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-[#1a1a1a]" />
+        <img src="/images/ui/qian.png" alt="background" className="w-full h-full object-cover opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/90 pointer-events-none" />
       </div>
 
       {/* Header */}
@@ -180,27 +206,31 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="absolute bottom-0 left-0 right-0 z-20 h-20 bg-black/80 backdrop-blur-xl border-t border-white/10 flex justify-around items-center px-6 pb-safe">
-        <button 
+      <nav className="absolute bottom-0 left-0 right-0 z-20 h-20 flex justify-around items-center px-6 pb-safe border-t-2 border-[#D4AF37]/50 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]"
+           style={{ background: 'linear-gradient(to bottom, #E8DCC4, #B89C6A)' }}>
+        <button
           onClick={() => setActiveTab('hall')}
-          className={cn("flex flex-col items-center gap-1 transition-colors", activeTab === 'hall' ? 'text-[#D4AF37]' : 'text-white/50 hover:text-white/80')}
+          className={cn("flex flex-col items-center justify-center gap-1 transition-all h-full w-24 relative", activeTab === 'hall' ? 'text-[#6A3F1A]' : 'text-[#8C6B45]')}
         >
-          <Home className="w-6 h-6" />
-          <span className="text-[10px] font-bold">大厅</span>
+          {activeTab === 'hall' && <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#FFF] to-transparent shadow-[0_0_10px_#FFF]" />}
+          <Home className={cn("w-7 h-7 drop-shadow-md", activeTab === 'hall' && 'scale-110')} />
+          <span className="text-[12px] font-black drop-shadow-sm">大厅</span>
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('room')}
-          className={cn("flex flex-col items-center gap-1 transition-colors", activeTab === 'room' ? 'text-[#D4AF37]' : 'text-white/50 hover:text-white/80')}
+          className={cn("flex flex-col items-center justify-center gap-1 transition-all h-full w-24 relative", activeTab === 'room' ? 'text-[#6A3F1A]' : 'text-[#8C6B45]')}
         >
-          <LayoutGrid className="w-6 h-6" />
-          <span className="text-[10px] font-bold">开房</span>
+          {activeTab === 'room' && <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#FFF] to-transparent shadow-[0_0_10px_#FFF]" />}
+          <LayoutGrid className={cn("w-7 h-7 drop-shadow-md", activeTab === 'room' && 'scale-110')} />
+          <span className="text-[12px] font-black drop-shadow-sm">开房</span>
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('mine')}
-          className={cn("flex flex-col items-center gap-1 transition-colors", activeTab === 'mine' ? 'text-[#D4AF37]' : 'text-white/50 hover:text-white/80')}
+          className={cn("flex flex-col items-center justify-center gap-1 transition-all h-full w-24 relative", activeTab === 'mine' ? 'text-[#6A3F1A]' : 'text-[#8C6B45]')}
         >
-          <User className="w-6 h-6" />
-          <span className="text-[10px] font-bold">我的</span>
+          {activeTab === 'mine' && <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#FFF] to-transparent shadow-[0_0_10px_#FFF]" />}
+          <User className={cn("w-7 h-7 drop-shadow-md", activeTab === 'mine' && 'scale-110')} />
+          <span className="text-[12px] font-black drop-shadow-sm">我的</span>
         </button>
       </nav>
 

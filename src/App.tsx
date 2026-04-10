@@ -166,16 +166,19 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
           />
         )}
 
+        {/* Host Indicator */}
         {player.isHost && (
-          <div className="absolute -top-2 -left-2 bg-blue-600 text-white p-1.5 rounded-full shadow-lg border border-white/20 z-20">
-            <ShieldCheck className="w-4 h-4" />
+          <div className="absolute -top-2 -left-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-black p-1.5 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.5)] border border-yellow-200 z-20">
+            <Crown className="w-3 h-3 sm:w-4 sm:h-4 drop-shadow-sm" />
           </div>
         )}
 
+        {/* Ready Status */}
         {player.ready && roomStatus === 'waiting' && (
-          <motion.div 
-            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-lg border border-blue-400/30 z-20"
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-[0_0_10px_rgba(16,185,129,0.5)] border border-emerald-300 z-20"
           >
             已准备
           </motion.div>
@@ -215,6 +218,27 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
         )}
       </AnimatePresence>
 
+      {/* Floating Score Animation */}
+      <AnimatePresence>
+        {player.lastWin !== undefined && roomStatus === 'finished' && (
+          <motion.div
+            initial={{ opacity: 0, y: 0, scale: 0.5 }}
+            animate={{ opacity: 1, y: -40, scale: 1.2 }}
+            exit={{ opacity: 0 }}
+            className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none z-50"
+          >
+            <div className={cn(
+              "text-[12px] sm:text-sm font-black px-3 sm:px-4 py-1 rounded-full shadow-[0_5px_15px_rgba(0,0,0,0.5)] whitespace-nowrap border",
+              player.lastWin > 0 
+                ? "bg-gradient-to-r from-red-700 to-red-600 text-[#FFD700] border-[#FFD700]" 
+                : "bg-gradient-to-r from-gray-800 to-gray-700 text-gray-300 border-gray-600"
+            )}>
+              {player.lastWin > 0 ? `+${player.lastWin}` : player.lastWin}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Action Indicators */}
       <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-2">
         {player.bidMultiplier > 0 && (
@@ -223,8 +247,8 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
           </div>
         )}
         {player.betMultiplier > 0 && (
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-500 text-white text-[10px] sm:text-xs font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg border border-indigo-300 whitespace-nowrap">
-            注 {player.betMultiplier}倍
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-[10px] sm:text-xs font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] border border-emerald-300 whitespace-nowrap">
+            下注 {player.betMultiplier}倍
           </div>
         )}
         {roomStatus === 'waiting' && player.ready && (
@@ -710,9 +734,9 @@ export default function App() {
       </div>
 
       <div className="absolute top-4 right-6 z-50 flex items-center gap-3">
-        <button 
+        <button
           onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-          className="p-3 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-2xl transition-all border border-blue-600/30"
+          className="p-3 bg-yellow-600/20 hover:bg-yellow-600 text-yellow-400 hover:text-black rounded-2xl transition-all border border-yellow-600/30 shadow-lg"
         >
           {isSoundEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
         </button>
@@ -732,29 +756,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Spectators */}
-      {false && (
-        <div className="absolute top-1/2 right-0 -translate-y-1/2 z-40 bg-black/40 backdrop-blur-md rounded-l-2xl border-y border-l border-white/10 p-2 flex flex-col items-center gap-2 pointer-events-auto">
-          <div className="text-[10px] font-bold text-white/70 whitespace-nowrap mb-1 flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            旁观群众 ({room.spectators.length})
-          </div>
-          <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">
-            {room.spectators.map(spec => (
-              <div key={spec.id} className="relative group cursor-pointer" onClick={(e) => handleAvatarClick(spec.id, e.currentTarget.getBoundingClientRect())}>
-                <img 
-                  src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${spec.id}&backgroundColor=1e293b`} 
-                  alt="spectator" 
-                  className="w-10 h-10 rounded-xl border border-white/20 hover:border-white transition-colors"
-                />
-                <div className="absolute top-1/2 right-[120%] -translate-y-1/2 bg-black/80 px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity border border-white/20">
-                  {spec.name}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Quick Chat Panel */}
       <div className="absolute bottom-4 left-4 z-40 pointer-events-auto">
@@ -920,13 +922,7 @@ export default function App() {
 
           {/* Flying Chats */}
           {flyingChats.map(chat => {
-            const isSpectator = room?.spectators?.some((s: any) => s.id === chat.userId);
-            let pos;
-            if (isSpectator) {
-               pos = { x: "90vw", y: "50vh" };
-            } else {
-               pos = getCoordinatesFromPos(getPlayerPositionStr(chat.userId, room!));
-            }
+            const pos = getCoordinatesFromPos(getPlayerPositionStr(chat.userId, room!));
             return (
               <motion.div
                 key={chat.id}
@@ -981,7 +977,7 @@ export default function App() {
                   {!currentPlayer?.ready ? (
                     <button
                       onClick={handleReady}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg border border-blue-400/50"
+                      className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-4 rounded-2xl font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all active:scale-95 text-lg border border-emerald-400/50"
                     >
                       准备开始
                     </button>
@@ -1023,7 +1019,7 @@ export default function App() {
       ) : (
                     <button
                       disabled
-                      className="bg-slate-800/80 text-blue-400 border border-blue-500/50 py-4 rounded-2xl font-black flex items-center justify-center gap-2 text-lg"
+                      className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 py-4 rounded-2xl font-black flex items-center justify-center gap-2 text-lg shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]"
                     >
                       <CheckCircle2 className="w-5 h-5" /> 已准备，等待中
                     </button>
@@ -1190,7 +1186,7 @@ export default function App() {
                           {p.lastWin > 0 ? `+${p.lastWin}` : p.lastWin}
                         </span>
                       </div>
-                      <span className="text-blue-400 font-black text-[10px] bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                      <span className="text-yellow-400 font-black text-[10px] bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.2)]">
                         {getBullName(calculateBull(p.cards).type)}
                       </span>
                     </div>
@@ -1241,9 +1237,9 @@ export default function App() {
                       {room.players.sort((a, b) => b.score - a.score)[0]?.name}
                     </div>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-500/20 to-transparent p-4 rounded-3xl border border-blue-500/20">
-                    <Zap className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                    <div className="text-[10px] font-bold text-blue-500 uppercase">运气之王</div>
+                  <div className="bg-gradient-to-br from-emerald-500/20 to-transparent p-4 rounded-3xl border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                    <Zap className="w-8 h-8 text-emerald-500 mx-auto mb-2 drop-shadow-lg" />
+                    <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">运气之王</div>
                     <div className="text-sm font-black text-white truncate">
                       {room.players.sort((a, b) => b.stats.luckCount - a.stats.luckCount)[0]?.name}
                     </div>
