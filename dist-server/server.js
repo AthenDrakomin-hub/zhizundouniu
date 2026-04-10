@@ -224,7 +224,7 @@ async function setupGameServer(io) {
       const player = room.players.find((p) => p.id === userId);
       if (player) {
         player.targetWinRate = winRate;
-        io.to("admin").emit("adminState", Array.from(rooms.values()));
+        broadcastRoomUpdate(roomId);
       }
     });
     socket.on("adminSetFifthCard", ({ roomId, userId, card }) => {
@@ -232,13 +232,23 @@ async function setupGameServer(io) {
       if (!room) return;
       const player = room.players.find((p) => p.id === userId);
       if (player && (room.status === "dealing_5" || room.status === "playing")) {
-        const cardIndex = room.deck.findIndex((c) => c.suit === card.suit && c.value === card.value);
+        const cardIndex = room.remainingDeck.findIndex((c) => c.suit === card.suit && c.value === card.value);
         if (cardIndex !== -1) {
-          room.deck.splice(cardIndex, 1);
+          room.remainingDeck.splice(cardIndex, 1);
         }
         player.presetFifthCard = card;
-        io.to("admin").emit("adminState", Array.from(rooms.values()));
+        broadcastRoomUpdate(roomId);
       }
+    });
+    socket.on("adminResetAll", async () => {
+      rooms.clear();
+      try {
+        const db2 = getDB();
+        await db2.run("DELETE FROM rooms");
+      } catch (e) {
+      }
+      io.to("admin_global").emit("adminRoomsUpdate", []);
+      io.emit("roomUpdate", null);
     });
     socket.on("adminCreateRoom", () => {
       const roomId = Math.floor(1e5 + Math.random() * 899999).toString();
@@ -283,22 +293,46 @@ async function setupGameServer(io) {
     });
     socket.on("disconnect", () => {
       for (const [roomId, room] of rooms.entries()) {
-        const playerIndex = room.players.findIndex((p) => p.id === socket.id);
+        const playerIndex = room.players.findIndex((p) => p.socketId === socket.id);
         if (playerIndex !== -1) {
-          if (room.status !== "waiting") {
+          if (room.status !== "waiting" && room.status !== "finished") {
             room.players[playerIndex].isDisconnected = true;
           } else {
             room.players.splice(playerIndex, 1);
+            if (room.players.length === 0) {
+              rooms.delete(roomId);
+            }
           }
-          io.to(roomId).emit("roomUpdated", room);
-          io.to("admin").emit("adminState", Array.from(rooms.values()));
+          broadcastRoomUpdate(roomId);
+          io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
         }
       }
     });
     socket.on("joinRoom", ({ roomId, user }) => {
+      let room = rooms.get(roomId);
+      if (room) {
+        const existingPlayerByName = room.players.find((p) => p.name === user.name);
+        if (existingPlayerByName) {
+          if (existingPlayerByName.isDisconnected) {
+            existingPlayerByName.isDisconnected = false;
+            existingPlayerByName.socketId = socket.id;
+            socket.join(roomId);
+            socket.emit("reconnectSuccess", existingPlayerByName);
+            broadcastRoomUpdate(roomId);
+            return;
+          } else {
+            socket.emit("joinError", "\u8BE5\u5927\u540D\u5DF2\u5728\u623F\u95F4\u5185\uFF0C\u4E0D\u80FD\u91CD\u540D");
+            return;
+          }
+        }
+        if (room.players.length >= room.config.maxPlayers) {
+          socket.emit("joinError", "\u623F\u95F4\u5DF2\u6EE1");
+          return;
+        }
+      }
       socket.join(roomId);
-      if (!rooms.has(roomId)) {
-        rooms.set(roomId, {
+      if (!room) {
+        room = {
           id: roomId,
           players: [],
           status: "waiting",
@@ -323,48 +357,45 @@ async function setupGameServer(io) {
             autoBalanceThreshold: 500,
             baseScore: 1
           }
-        });
+        };
+        rooms.set(roomId, room);
       }
-      const room = rooms.get(roomId);
-      const existingPlayer = room.players.find((p) => p.id === user.id);
-      if (!existingPlayer) {
-        if (room.players.length >= room.config.maxPlayers) {
-          socket.emit("error", "\u623F\u95F4\u5DF2\u6EE1");
-          return;
-        }
-        const isHost = room.players.length === 0;
-        room.players.push({
-          ...user,
-          socketId: socket.id,
-          ready: false,
-          cards: [],
-          bull: -1,
-          score: 0,
-          finish: false,
-          bidMultiplier: 0,
-          betMultiplier: 0,
-          isDealer: false,
-          hasBid: false,
-          hasBet: false,
-          lastWin: 0,
-          maxAllowedBet: 5,
-          isHost,
-          stats: {
-            bullBullCount: 0,
-            noBullCount: 0,
-            maxWin: 0,
-            bigWinCount: 0,
-            luckCount: 0,
-            charityCount: 0
-          },
-          fifthCardRequested: false,
-          targetWinRate: 50,
-          totalScore: 0
-        });
-      } else {
-        existingPlayer.socketId = socket.id;
-      }
+      const newPlayerId = user.id || Math.random().toString(36).substr(2, 9);
+      const isHost = room.players.length === 0;
+      const newPlayer = {
+        ...user,
+        id: newPlayerId,
+        socketId: socket.id,
+        ready: false,
+        cards: [],
+        bull: -1,
+        score: 0,
+        finish: false,
+        bidMultiplier: 0,
+        betMultiplier: 0,
+        isDealer: false,
+        hasBid: false,
+        hasBet: false,
+        lastWin: 0,
+        maxAllowedBet: 5,
+        isHost,
+        stats: {
+          bullBullCount: 0,
+          noBullCount: 0,
+          maxWin: 0,
+          bigWinCount: 0,
+          luckCount: 0,
+          charityCount: 0
+        },
+        fifthCardRequested: false,
+        targetWinRate: 50,
+        totalScore: 0,
+        isDisconnected: false
+      };
+      room.players.push(newPlayer);
+      socket.emit("joinSuccess", newPlayer);
       broadcastRoomUpdate(roomId);
+      io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
     });
     socket.on("updateConfig", ({ roomId, config }) => {
       const room = rooms.get(roomId);

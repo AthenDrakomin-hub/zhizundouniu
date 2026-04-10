@@ -123,6 +123,16 @@ export async function setupGameServer(io: Server) {
       }
     });
 
+    socket.on('adminResetAll', async () => {
+      rooms.clear();
+      try {
+        const db = getDB();
+        await db.run('DELETE FROM rooms');
+      } catch (e) {}
+      io.to('admin_global').emit('adminRoomsUpdate', []);
+      io.emit('roomUpdate', null); // kick everyone out
+    });
+
     socket.on('adminCreateRoom', () => {
       const roomId = Math.floor(100000 + Math.random() * 899999).toString();
       const roomKey = Math.floor(100000 + Math.random() * 899999).toString();
@@ -168,25 +178,57 @@ export async function setupGameServer(io: Server) {
     socket.on('disconnect', () => {
       // Find and handle player disconnects across all rooms
       for (const [roomId, room] of rooms.entries()) {
-        const playerIndex = room.players.findIndex((p: any) => p.id === socket.id);
+        const playerIndex = room.players.findIndex((p: any) => p.socketId === socket.id);
         if (playerIndex !== -1) {
           // If game is in progress, mark them as disconnected instead of removing
-          if (room.status !== 'waiting') {
+          if (room.status !== 'waiting' && room.status !== 'finished') {
              room.players[playerIndex].isDisconnected = true;
           } else {
-             // If waiting, just remove them
+             // If waiting or finished, just remove them
              room.players.splice(playerIndex, 1);
+             if (room.players.length === 0) {
+               rooms.delete(roomId);
+             }
           }
-          io.to(roomId).emit('roomUpdated', room);
-          io.to('admin').emit('adminState', Array.from(rooms.values()));
+          broadcastRoomUpdate(roomId);
+          io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
         }
       }
     });
 
     socket.on('joinRoom', ({ roomId, user }) => {
+      let room = rooms.get(roomId);
+
+      if (room) {
+        // 检查是否重名
+        const existingPlayerByName = room.players.find((p: any) => p.name === user.name);
+        
+        if (existingPlayerByName) {
+          if (existingPlayerByName.isDisconnected) {
+            // 允许重连，接管原座位
+            existingPlayerByName.isDisconnected = false;
+            existingPlayerByName.socketId = socket.id;
+            socket.join(roomId);
+            socket.emit('reconnectSuccess', existingPlayerByName);
+            broadcastRoomUpdate(roomId);
+            return;
+          } else {
+            // 在线重名，拒绝加入
+            socket.emit('joinError', '该大名已在房间内，不能重名');
+            return;
+          }
+        }
+
+        if (room.players.length >= room.config.maxPlayers) {
+          socket.emit('joinError', '房间已满');
+          return;
+        }
+      }
+
       socket.join(roomId);
-      if (!rooms.has(roomId)) {
-        rooms.set(roomId, { 
+
+      if (!room) {
+        room = { 
           id: roomId, 
           players: [], 
           status: 'waiting', 
@@ -211,50 +253,49 @@ export async function setupGameServer(io: Server) {
             autoBalanceThreshold: 500,
             baseScore: 1
           }
-        });
-      }
-      const room = rooms.get(roomId);
-      
-      const existingPlayer = room.players.find((p: any) => p.id === user.id);
-      if (!existingPlayer) {
-        if (room.players.length >= room.config.maxPlayers) {
-          socket.emit('error', '房间已满');
-          return;
-        }
-        const isHost = room.players.length === 0;
-        room.players.push({ 
-          ...user, 
-          socketId: socket.id, 
-          ready: false, 
-          cards: [], 
-          bull: -1, 
-          score: 0, 
-          finish: false,
-          bidMultiplier: 0,
-          betMultiplier: 0,
-          isDealer: false,
-          hasBid: false,
-          hasBet: false,
-          lastWin: 0,
-          maxAllowedBet: 5,
-          isHost: isHost,
-          stats: {
-            bullBullCount: 0,
-            noBullCount: 0,
-            maxWin: 0,
-            bigWinCount: 0,
-            luckCount: 0,
-            charityCount: 0
-          },
-          fifthCardRequested: false,
-          targetWinRate: 50,
-          totalScore: 0
-        });
-      } else {
-        existingPlayer.socketId = socket.id;
+        };
+        rooms.set(roomId, room);
       }
 
+      // If this is a new connection, assign a server-generated ID or use the client's
+      const newPlayerId = user.id || Math.random().toString(36).substr(2, 9);
+      const isHost = room.players.length === 0;
+
+      const newPlayer = {
+        ...user,
+        id: newPlayerId,
+        socketId: socket.id,
+        ready: false,
+        cards: [],
+        bull: -1,
+        score: 0,
+        finish: false,
+        bidMultiplier: 0,
+        betMultiplier: 0,
+        isDealer: false,
+        hasBid: false,
+        hasBet: false,
+        lastWin: 0,
+        maxAllowedBet: 5,
+        isHost: isHost,
+        stats: {
+          bullBullCount: 0,
+          noBullCount: 0,
+          maxWin: 0,
+          bigWinCount: 0,
+          luckCount: 0,
+          charityCount: 0
+        },
+        fifthCardRequested: false,
+        targetWinRate: 50,
+        totalScore: 0,
+        isDisconnected: false,
+      };
+
+      room.players.push(newPlayer);
+      socket.emit('joinSuccess', newPlayer);
       broadcastRoomUpdate(roomId);
+      io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
     });
 
     socket.on('updateConfig', ({ roomId, config }) => {

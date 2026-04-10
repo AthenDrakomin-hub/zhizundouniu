@@ -16,6 +16,48 @@ function cn(...inputs: ClassValue[]) {
 
 const socket: Socket = io();
 
+// 简单的音效管理器，使用刚刚引入的真实音频文件
+const AudioManager = {
+  sounds: {
+    bgm: new Audio('/audio/bgm.mp3'),
+    countDown: new Audio('/audio/countDown.mp3'),
+    deal: new Audio('/audio/effect1.mp3'), // 发牌音效
+    chips: new Audio('/audio/effect2.mp3'), // 筹码音效
+    heartbeat: new Audio('/audio/effect3.mp3'), // 心跳音效
+    bigwin: new Audio('/audio/victory.mp3'), // 大奖音效
+    lose: new Audio('/audio/fail.mp3'), // 输局音效
+    emote: new Audio('/audio/pop.mp3'), // 表情弹出音效
+    click: new Audio('/audio/pop.mp3'),
+    bid: new Audio('/audio/effect1.mp3'),
+    bet: new Audio('/audio/effect2.mp3'),
+    reveal: new Audio('/audio/effect4.mp3'),
+  } as Record<string, HTMLAudioElement>,
+  play(name: string) {
+    try {
+      const audio = this.sounds[name];
+      if (!audio) return;
+      audio.currentTime = 0;
+      if (name === 'bgm') {
+        audio.loop = true;
+        audio.volume = 0.3;
+      }
+      audio.play().catch(() => {});
+    } catch (e) {
+      console.error('Audio play error:', e);
+    }
+  },
+  stop(name: string) {
+    try {
+      const audio = this.sounds[name];
+      if (!audio) return;
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (e) {
+      console.error('Audio stop error:', e);
+    }
+  }
+};
+
 interface PlayerSeatProps {
   player: any;
   position: string;
@@ -376,42 +418,6 @@ export default function App() {
     }
   };
 
-  // 简单的音效管理器，使用刚刚引入的真实音频文件
-  const AudioManager = {
-    sounds: {
-      bgm: new Audio('/audio/bgm.mp3'),
-      countDown: new Audio('/audio/countDown.mp3'),
-      deal: new Audio('/audio/effect1.mp3'), // 假设 effect1 是发牌音效
-      chips: new Audio('/audio/effect2.mp3'), // 假设 effect2 是筹码音效
-      heartbeat: new Audio('/audio/effect3.mp3'), // 心跳音效
-      bigwin: new Audio('/audio/victory.mp3'), // 大奖音效
-      lose: new Audio('/audio/fail.mp3'), // 输局音效
-      emote: new Audio('/audio/pop.mp3') // 表情弹出音效
-    } as Record<string, HTMLAudioElement>,
-    play(name: string) {
-      try {
-        const audio = this.sounds[name];
-        if (!audio) return;
-        audio.currentTime = 0;
-        if (name === 'bgm') {
-          audio.loop = true;
-          audio.volume = 0.3;
-        }
-        audio.play().catch(() => {});
-      } catch (e) {
-        // 忽略浏览器自动播放限制报错
-      }
-    },
-    stop(name: string) {
-      try {
-        if (this.sounds[name]) {
-          this.sounds[name].pause();
-          this.sounds[name].currentTime = 0;
-        }
-      } catch (e) {}
-    }
-  };
-
   const playSound = (name: string) => {
     if (!isSoundEnabled) return;
     AudioManager.play(name);
@@ -426,6 +432,17 @@ export default function App() {
   }, [isSoundEnabled, isJoined, room?.status]);
 
   useEffect(() => {
+    socket.on('joinError', (msg: string) => {
+      alert(msg);
+      setIsJoined(false);
+      setUser(null);
+    });
+
+    socket.on('reconnectSuccess', (existingUser: any) => {
+      setUser(existingUser);
+      setIsJoined(true);
+    });
+
     socket.on('roomUpdate', (updatedRoom: Room) => {
       if (room) {
         const changes: Record<string, number> = {};
@@ -531,7 +548,16 @@ export default function App() {
       window.location.reload();
     });
 
+    socket.on('joinSuccess', (userData: any) => {
+      setUser(userData);
+      setIsJoined(true);
+      setIsActivated(true);
+    });
+
     return () => {
+      socket.off('joinSuccess');
+      socket.off('joinError');
+      socket.off('reconnectSuccess');
       socket.off('roomUpdate');
       socket.off('kicked');
     };
@@ -548,11 +574,8 @@ export default function App() {
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     const newUser = { id: Math.random().toString(36).substr(2, 9), name: tempName };
-    setUser(newUser);
+    // Wait for roomUpdate or error before setting isJoined
     socket.emit('joinRoom', { roomId, user: newUser });
-    setIsJoined(true);
-    // If room doesn't exist yet, this user will be host and should be auto-activated
-    if (!room) setIsActivated(true);
   };
 
   const handleReady = () => {
@@ -606,7 +629,7 @@ export default function App() {
       <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
         {/* Full-bleed immersive background */}
         <div className="absolute inset-0 z-[-10]">
-          <img src="/images/ui/youxibeijing.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
+          <img src="/images/ui/qian.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/80" />
         </div>
         

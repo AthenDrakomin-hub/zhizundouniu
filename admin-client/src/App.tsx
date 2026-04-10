@@ -167,9 +167,16 @@ export default function App() {
           <div className="flex items-center justify-between mb-8 mt-4">
             <div className="flex items-center gap-3 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
               <img src="/images/ui/logo3.png" alt="Logo" className="w-8 h-8 object-contain" />
-              <h1 className="font-black text-xl tracking-wider">房卡管理中心</h1>
+              <h1 className="font-black text-xl tracking-wider">控制大盘</h1>
             </div>
-            <button onClick={() => window.location.reload()} className="text-xs font-bold text-white/50 hover:text-white transition-colors uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full backdrop-blur-sm">退出</button>
+            <div className="flex gap-2">
+              <button onClick={() => {
+                if (confirm('警告：此操作将清空服务器所有房间数据和缓存！确定执行吗？')) {
+                  socket.emit('adminResetAll');
+                }
+              }} className="text-xs font-bold text-red-500 hover:bg-red-500 hover:text-white transition-colors uppercase tracking-widest border border-red-500/50 px-3 py-1.5 rounded-full backdrop-blur-sm shadow-[0_0_10px_rgba(239,68,68,0.2)]">初始化数据</button>
+              <button onClick={() => window.location.reload()} className="text-xs font-bold text-white/50 hover:text-white transition-colors uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full backdrop-blur-sm">退出</button>
+            </div>
           </div>
 
           {/* 顶部看板 */}
