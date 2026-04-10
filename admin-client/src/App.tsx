@@ -11,7 +11,11 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // Connect to the main server port 3000
-const socket: Socket = io('http://localhost:3000');
+// Initialize socket connection dynamically based on the current origin
+// Since Nginx proxies /socket.io/ to the backend, we can just connect to '/' or omit the URL
+const socket: Socket = io(window.location.origin, {
+  path: '/socket.io/'
+});
 
 const SUITS = ['♠', '♥', '♣', '♦'];
 const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
