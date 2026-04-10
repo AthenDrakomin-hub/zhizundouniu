@@ -90,16 +90,19 @@ export default function App() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Dark Slate Background */}
-        <div className="absolute inset-0 bg-slate-950 z-[-10]" />
+        {/* Immersive Background Image */}
+        <div className="absolute inset-0 z-[-10]">
+          <img src="<images_data_path>" alt="background" className="w-full h-full object-cover scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/80" />
+        </div>
         
         {/* Subtle Ambient Glows */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-900/20 blur-[120px] rounded-full pointer-events-none z-[-5]" />
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-900/10 blur-[100px] rounded-full pointer-events-none z-[-5]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-red-900/30 blur-[120px] rounded-full pointer-events-none z-[-5]" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-slate-900/40 blur-[100px] rounded-full pointer-events-none z-[-5]" />
 
         <div className="relative z-10 w-full max-w-md">
           {/* Glass Card */}
-          <div className="bg-slate-900/80 backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] relative overflow-hidden">
+          <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] relative overflow-hidden">
             {/* Top Shine Accent */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
             
