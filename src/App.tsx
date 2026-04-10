@@ -538,8 +538,7 @@ export default function App() {
     playSound('reveal');
     const player = room.players.find(p => p.id === user.id);
     if (!player) return;
-    const { type } = calculateBull(player.cards);
-    socket.emit('finish', { roomId: room.id, userId: user.id, bull: type });
+    socket.emit('finish', { roomId: room.id, userId: user.id });
   };
 
   const handleAvatarClick = (playerId: string, rect: DOMRect) => {

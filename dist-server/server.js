@@ -900,7 +900,7 @@ async function startServer() {
       methods: ["GET", "POST"]
     }
   });
-  const PORT = 3e3;
+  const PORT = process.env.PORT || 3e3;
   await initDB();
   await setupRoutes(app);
   await setupGameServer(io);
