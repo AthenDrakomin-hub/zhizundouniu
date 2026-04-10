@@ -181,13 +181,14 @@ export default function App() {
             <div className="bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
               <div className="text-[10px] font-bold text-white/50 mb-1 tracking-widest">今日总局数</div>
               <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-                {allRooms.reduce((sum, r) => sum + (r.currentRound || 0), 0) + 120}
+                {allRooms.reduce((sum, r) => sum + (r.currentRound || 0), 0)}
               </div>
             </div>
             <div className="bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
               <div className="text-[10px] font-bold text-white/50 mb-1 tracking-widest">系统总盈亏</div>
               <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-                +{allRooms.reduce((sum, r) => sum + r.players.filter(p => p.isBot).reduce((s, p) => s + (p.totalScore || 0), 0), 0) + 8850}
+                {allRooms.reduce((sum, r) => sum + r.players.filter(p => p.isBot).reduce((s, p) => s + (p.totalScore || 0), 0), 0) > 0 ? '+' : ''}
+                {allRooms.reduce((sum, r) => sum + r.players.filter(p => p.isBot).reduce((s, p) => s + (p.totalScore || 0), 0), 0)}
               </div>
             </div>
           </div>
@@ -251,118 +252,173 @@ export default function App() {
 
   // 2. 房间控制页（核心改牌页）
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col h-[100dvh] overflow-hidden max-w-md mx-auto relative border-x border-white/5 shadow-2xl">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col h-[100dvh] overflow-hidden relative shadow-2xl">
+      {/* Immersive Red Bull Background for Console */}
+      <div className="absolute inset-0 z-[-10]">
+        <img src="/images/ui/hou.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      </div>
+
       {/* Header */}
-      <header className="h-14 bg-slate-900 border-b border-white/10 flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setRoom(null)} className="text-slate-400 hover:text-white p-1">
+      <header className="h-16 bg-black/60 backdrop-blur-md border-b border-red-500/20 flex items-center justify-between px-6 shrink-0 relative z-10 shadow-[0_5px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setRoom(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-white/50 transition-colors">
             <ArrowRight className="w-5 h-5 rotate-180" />
           </button>
-          <div>
-            <h1 className="font-black text-sm text-yellow-500">控制台: {room.id}</h1>
-            <div className="text-[10px] text-slate-500">进度: {room.currentRound}/{room.config.totalRounds}</div>
+          <div className="flex items-center gap-3">
+            <img src="/images/ui/logo3.png" alt="Logo" className="w-8 h-8 object-contain" />
+            <div>
+              <h1 className="font-black text-lg text-white tracking-wider">控制台 <span className="text-red-500">{room.id}</span></h1>
+              <div className="text-xs text-white/40 tracking-widest font-medium">当前进度: <span className="text-white">{room.currentRound}</span>/{room.config.totalRounds}</div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Players (全场透视区) */}
-      <div className="flex-1 p-4 overflow-y-auto custom-scrollbar relative">
+      {/* Main Content - Players (全场宽屏透视区) */}
+      <div className="flex-1 p-6 overflow-y-auto custom-scrollbar relative z-10">
         {toastMsg && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-2 rounded-full font-black shadow-xl z-50 text-sm whitespace-nowrap">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 border border-red-400 text-white px-8 py-3 rounded-full font-black shadow-[0_0_30px_rgba(220,38,38,0.6)] z-50 text-sm whitespace-nowrap">
             {toastMsg}
           </div>
         )}
         
-        <div className="space-y-4 pb-20">
-          {room.players.map(player => (
-            <div key={player.id} className={cn(
-              "bg-slate-900 rounded-2xl border p-4 relative overflow-hidden",
-              player.isDealer ? "border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.1)]" : "border-white/5",
-              selectedPlayerId === player.id ? "ring-2 ring-yellow-400 bg-slate-800" : ""
-            )}>
-              <div className="flex justify-between items-center mb-3">
-                <div className="font-black text-base flex items-center gap-2">
-                  {player.name} 
-                  {player.isDealer && <span className="bg-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded">庄</span>}
-                </div>
-                <div className="text-right">
-                  <div className="text-yellow-500 font-mono text-sm">💰 {player.score}</div>
-                  <div className={cn("text-[10px] font-bold", (player.totalScore || 0) >= 0 ? "text-emerald-400" : "text-red-400")}>
-                    总盈亏: {(player.totalScore || 0) > 0 ? '+' : ''}{player.totalScore || 0}
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-2 h-6 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+            <h2 className="text-lg font-black text-white tracking-widest uppercase">全场玩家实时监控</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+            {room.players.map(player => (
+              <div key={player.id} className={cn(
+                "bg-black/60 backdrop-blur-xl rounded-3xl border p-6 relative overflow-hidden transition-all",
+                player.isDealer ? "border-red-500/50 shadow-[0_0_30px_rgba(220,38,38,0.2)]" : "border-white/10",
+                selectedPlayerId === player.id ? "ring-2 ring-red-500 bg-black/80 scale-[1.02]" : "hover:border-white/20"
+              )}>
+                {player.isDealer && (
+                  <div className="absolute -top-6 -right-6 w-24 h-24 bg-red-600/20 blur-2xl rounded-full" />
+                )}
+                
+                <div className="flex justify-between items-center mb-6">
+                  <div className="font-black text-xl flex items-center gap-3">
+                    {player.name} 
+                    {player.isDealer && <span className="bg-gradient-to-r from-red-600 to-red-800 text-white text-xs px-2 py-1 rounded shadow-md border border-red-400/50 tracking-widest">庄家</span>}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-yellow-500 font-black text-lg">💰 {player.score}</div>
+                    <div className={cn("text-xs font-bold tracking-wider mt-1", (player.totalScore || 0) >= 0 ? "text-emerald-400" : "text-red-400")}>
+                      累计盈亏: {(player.totalScore || 0) > 0 ? '+' : ''}{player.totalScore || 0}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Cards */}
-              <div className="flex items-center justify-between">
-                {/* First 4 Cards */}
-                <div className="flex gap-1">
-                  {player.cards.slice(0, 4).map((card, i) => (
-                    <div key={i} className="w-8 h-12 bg-white rounded flex flex-col items-center justify-center text-[10px] font-bold shadow-sm">
-                      <div className={['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black"}>{card.value}</div>
-                      <div className={['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black"}>{card.suit}</div>
+                {/* Cards */}
+                <div className="flex flex-col gap-4">
+                  <div className="text-xs font-bold text-white/40 tracking-widest uppercase">当前手牌</div>
+                  <div className="flex items-center justify-between">
+                    {/* First 4 Cards */}
+                    <div className="flex gap-2">
+                      {player.cards.slice(0, 4).map((card, i) => (
+                        <div key={i} className="w-12 h-16 bg-white rounded-lg flex flex-col items-center justify-center font-black shadow-lg">
+                          <div className={cn("text-sm", ['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black")}>{card.value}</div>
+                          <div className={cn("text-lg", ['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black")}>{card.suit}</div>
+                        </div>
+                      ))}
+                      {player.cards.length === 0 && <div className="text-sm text-white/30 italic py-4">等待发牌中...</div>}
                     </div>
-                  ))}
-                  {player.cards.length === 0 && <div className="text-xs text-slate-600 italic py-2">等待发牌...</div>}
+                    
+                    {/* 5th Card (Preset or Requested) */}
+                    {(room.status === 'dealing_5' || room.status === 'playing' || room.status === 'finished') && (
+                      <div 
+                        onClick={() => setSelectedPlayerId(selectedPlayerId === player.id ? null : player.id)}
+                        className={cn(
+                          "w-14 h-20 rounded-xl flex flex-col items-center justify-center font-black shadow-xl cursor-pointer transition-all border-2 group",
+                          selectedPlayerId === player.id ? "border-red-500 animate-pulse scale-110 shadow-[0_0_20px_rgba(239,68,68,0.4)]" : "border-transparent",
+                          player.presetFifthCard || player.fifthCardRequested ? "bg-white" : "bg-black/40 border-dashed border-white/20 hover:border-red-500/50"
+                        )}
+                      >
+                        {player.presetFifthCard ? (
+                          <>
+                            <div className={cn("text-base", ['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black")}>{player.presetFifthCard.value}</div>
+                            <div className={cn("text-xl", ['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black")}>{player.presetFifthCard.suit}</div>
+                            <div className="absolute -top-2 -right-2 text-[10px] bg-red-600 border border-white px-2 py-0.5 rounded-full text-white shadow-md">预设</div>
+                          </>
+                        ) : player.fifthCardRequested && player.cards[4] ? (
+                          <>
+                            <div className={cn("text-base", ['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black")}>{player.cards[4].value}</div>
+                            <div className={cn("text-xl", ['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black")}>{player.cards[4].suit}</div>
+                          </>
+                        ) : (
+                          <div className="text-white/40 text-[10px] text-center px-1 font-medium tracking-widest group-hover:text-red-400 transition-colors">点此<br/>发牌</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                {/* 5th Card (Preset or Requested) */}
-                {(room.status === 'dealing_5' || room.status === 'playing' || room.status === 'finished') && (
-                  <div 
-                    onClick={() => setSelectedPlayerId(selectedPlayerId === player.id ? null : player.id)}
-                    className={cn(
-                      "w-10 h-14 rounded flex flex-col items-center justify-center text-[10px] font-bold shadow-md cursor-pointer transition-all border",
-                      selectedPlayerId === player.id ? "border-yellow-400 animate-pulse scale-110" : "border-transparent",
-                      player.presetFifthCard || player.fifthCardRequested ? "bg-yellow-100" : "bg-slate-800 border-dashed border-slate-600 hover:border-yellow-500/50"
-                    )}
-                  >
-                    {player.presetFifthCard ? (
-                      <>
-                        <div className={['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black"}>{player.presetFifthCard.value}</div>
-                        <div className={['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black"}>{player.presetFifthCard.suit}</div>
-                        <div className="absolute -top-1 -right-1 text-[8px] bg-red-600 px-1 rounded-full text-white">改</div>
-                      </>
-                    ) : player.fifthCardRequested && player.cards[4] ? (
-                      <>
-                        <div className={['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black"}>{player.cards[4].value}</div>
-                        <div className={['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black"}>{player.cards[4].suit}</div>
-                      </>
-                    ) : (
-                      <div className="text-slate-500 text-[8px] text-center px-1">点此<br/>换牌</div>
-                    )}
+
+                {/* Optional: Card Selector Popover */}
+                {selectedPlayerId === player.id && room.status !== 'finished' && (
+                  <div className="mt-4 p-4 bg-black/80 rounded-xl border border-red-500/50 grid grid-cols-4 gap-2">
+                    <div className="col-span-full text-xs text-white/50 text-center mb-2">手动发配第5张牌 (点杀/必胜)</div>
+                    {['♠', '♥', '♣', '♦'].map(suit => (
+                      <div key={suit} className="flex flex-col gap-1">
+                        {['A', 'K', '10', '5'].map(value => (
+                          <button
+                            key={`${suit}${value}`}
+                            onClick={() => {
+                              socket.emit('adminSetFifthCard', { roomId: room.id, userId: player.id, card: { suit, value } });
+                              setSelectedPlayerId(null);
+                              showToast(`已向 ${player.name} 下发预设牌 ${suit}${value}`);
+                            }}
+                            className={cn(
+                              "py-1 px-2 rounded text-sm font-bold bg-white/5 hover:bg-white/20 transition-colors",
+                              ['♥', '♦'].includes(suit) ? "text-red-500" : "text-slate-300"
+                            )}
+                          >
+                            {suit}{value}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
                   </div>
                 )}
-              </div>
-              
-              {/* Hand Type */}
-              {player.finish && (
-                <div className="absolute bottom-2 right-2 text-[10px] font-black bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">
-                  {getBullName(player.bull)}
+                
+                {/* Hand Type */}
+                <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+                  <div className="text-xs text-white/40 font-medium tracking-widest">
+                    状态: <span className={player.isDisconnected ? "text-red-500 font-bold" : "text-emerald-400"}>{player.isDisconnected ? '离线' : '在线'}</span>
+                  </div>
+                  {player.bull !== undefined && (
+                    <div className="bg-red-950/50 text-red-400 border border-red-900 px-3 py-1 rounded text-sm font-black tracking-widest">
+                      {['无牛', '牛一', '牛二', '牛三', '牛四', '牛五', '牛六', '牛七', '牛八', '牛九', '牛牛', '四花牛', '五花牛', '五小牛'][player.bull]}
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* Target Win Rate Control */}
-              <div className="mt-4 pt-3 border-t border-white/10">
-                <div className="flex justify-between text-[10px] mb-2">
-                  <span className="text-red-400 font-bold">压制 (0%)</span>
-                  <span className="text-slate-400">系统胜率调控: <span className="text-yellow-400 font-bold">{player.targetWinRate ?? 50}%</span></span>
-                  <span className="text-yellow-500 font-bold">放水 (100%)</span>
+                {/* Target Win Rate Control */}
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <div className="flex justify-between text-[10px] mb-2">
+                    <span className="text-red-400 font-bold">压制 (0%)</span>
+                    <span className="text-white/50">系统胜率调控: <span className="text-red-400 font-bold">{player.targetWinRate ?? 50}%</span></span>
+                    <span className="text-emerald-500 font-bold">放水 (100%)</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={player.targetWinRate ?? 50}
+                    onChange={(e) => {
+                      const newRate = parseInt(e.target.value);
+                      socket.emit('adminSetWinRate', { roomId: room.id, userId: player.id, winRate: newRate });
+                    }}
+                    className="w-full h-2 bg-gradient-to-r from-red-600 via-slate-500 to-emerald-500 rounded-lg appearance-none cursor-pointer"
+                  />
                 </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={player.targetWinRate ?? 50}
-                  onChange={(e) => {
-                    const newRate = parseInt(e.target.value);
-                    socket.emit('adminSetWinRate', { roomId: room.id, userId: player.id, winRate: newRate });
-                  }}
-                  className="w-full h-2 bg-gradient-to-r from-red-600 via-slate-500 to-yellow-500 rounded-lg appearance-none cursor-pointer"
-                />
               </div>
-            </div>
-          ))}
-          {room.players.length === 0 && <div className="text-center text-slate-500 py-10">等待玩家加入...</div>}
+            ))}
+            {room.players.length === 0 && <div className="col-span-full text-center text-white/30 py-20 font-bold tracking-widest">等待玩家加入...</div>}
+          </div>
         </div>
       </div>
 
