@@ -149,13 +149,34 @@ export async function setupGameServer(io: Server) {
     });
 
     socket.on('adminResetAll', async () => {
+      // 必须是登录了管理员后台的 Socket 才有权限执行清空
+      if (!socket.rooms.has('admin_global')) {
+        console.warn(`[Security] 拦截到非管理员 Socket ${socket.id} 尝试执行 adminResetAll`);
+        return;
+      }
+
+      console.log(`[Admin] 管理员 ${socket.id} 触发了全服数据初始化`);
+      
+      // 1. 清空内存数据
       rooms.clear();
+      
+      // 2. 清空持久化数据库
       try {
         const db = getDB();
         await db.run('DELETE FROM rooms');
-      } catch (e) {}
+        console.log('[Admin] SQLite rooms 表已清空');
+      } catch (e) {
+        console.error('[Admin] SQLite 清空失败:', e);
+      }
+      
+      // 3. 更新管理员大盘视图
       io.to('admin_global').emit('adminRoomsUpdate', []);
-      io.emit('roomUpdate', null); // kick everyone out
+      
+      // 4. 将所有在线的普通玩家强行踢回登录大门，防止发送 null 导致前端崩溃白屏
+      io.emit('kicked'); 
+      
+      // 5. 断开所有底层的 Socket 连接分组，防止幽灵数据残留串线
+      io.disconnectSockets(true);
     });
 
     socket.on('adminCreateRoom', (config: any = {}) => {
