@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ShieldCheck, ArrowRight, Zap } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Room, Card } from '../../src/types';
@@ -17,17 +17,22 @@ const SUITS = ['♠', '♥', '♣', '♦'];
 const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
 export default function App() {
-  const [roomId, setRoomId] = useState('');
-  const [roomKey, setRoomKey] = useState('');
+  const [adminKey, setAdminKey] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [allRooms, setAllRooms] = useState<Room[]>([]);
   const [room, setRoom] = useState<Room | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState('');
+  const [showKeyModal, setShowKeyModal] = useState<string | null>(null);
 
   useEffect(() => {
-    socket.on('adminLoginSuccess', (roomData: Room) => {
+    socket.on('adminLoginSuccess', (rooms: Room[]) => {
       setIsLoggedIn(true);
-      setRoom(roomData);
+      setAllRooms(rooms);
+    });
+
+    socket.on('adminRoomsUpdate', (rooms: Room[]) => {
+      setAllRooms(rooms);
     });
 
     socket.on('roomUpdate', (roomData: Room) => {
@@ -40,6 +45,7 @@ export default function App() {
 
     return () => {
       socket.off('adminLoginSuccess');
+      socket.off('adminRoomsUpdate');
       socket.off('roomUpdate');
       socket.off('error');
     };
@@ -47,7 +53,15 @@ export default function App() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    socket.emit('adminLogin', { roomId, roomKey });
+    socket.emit('adminLogin', { adminKey });
+  };
+
+  const handleCreateRoom = () => {
+    socket.emit('adminCreateRoom');
+  };
+
+  const handleJoinRoom = (roomId: string) => {
+    socket.emit('adminJoinRoom', { roomId });
   };
 
   const showToast = (msg: string) => {
@@ -78,22 +92,14 @@ export default function App() {
             <ShieldCheck className="w-16 h-16" />
           </div>
           <h1 className="text-3xl font-black text-center mb-2">至尊后台系统</h1>
-          <p className="text-center text-slate-500 mb-8 text-sm">上帝视角 · 实时风控</p>
+          <p className="text-center text-slate-500 mb-8 text-sm">上帝视角 · 房卡管理</p>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <input
-              type="text"
-              placeholder="房间号"
-              value={roomId}
-              onChange={e => setRoomId(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-center text-xl font-black focus:border-yellow-500 outline-none"
-              required
-            />
-            <input
-              type="text"
-              placeholder="房卡钥匙"
-              value={roomKey}
-              onChange={e => setRoomKey(e.target.value)}
+              type="password"
+              placeholder="管理员密码 (admin123)"
+              value={adminKey}
+              onChange={e => setAdminKey(e.target.value)}
               className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-center text-xl font-black focus:border-yellow-500 outline-none"
               required
             />
@@ -106,157 +112,178 @@ export default function App() {
     );
   }
 
-  if (!room) return null;
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col h-screen overflow-hidden">
-      {/* Header */}
-      <header className="h-16 bg-slate-900 border-b border-white/10 flex items-center justify-between px-6 shrink-0">
-        <div className="flex items-center gap-4">
-          <ShieldCheck className="text-yellow-500 w-6 h-6" />
-          <h1 className="font-black text-lg">至尊后台</h1>
-          <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-bold border border-blue-500/30">
-            房间: {room.id}
+  // 1. 首页：房卡管理与活跃房间列表
+  if (!room) {
+    const activeRooms = allRooms.filter(r => r.status !== 'game_over');
+    
+    return (
+      <div className="min-h-screen bg-slate-950 text-white p-4 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2 text-yellow-500">
+            <ShieldCheck className="w-6 h-6" />
+            <h1 className="font-black text-lg">房卡管理中心</h1>
           </div>
-          <div className="px-3 py-1 bg-white/5 text-slate-400 rounded text-xs font-bold border border-white/10">
-            状态: {room.status}
+          <button onClick={() => window.location.reload()} className="text-xs text-slate-500 hover:text-white">退出</button>
+        </div>
+
+        {/* 顶部看板 */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-slate-900 p-4 rounded-2xl border border-white/5">
+            <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">活跃房间数</div>
+            <div className="text-3xl font-black text-emerald-400">{activeRooms.length}</div>
+          </div>
+          <div className="bg-slate-900 p-4 rounded-2xl border border-white/5">
+            <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">今日发放钥匙</div>
+            <div className="text-3xl font-black text-yellow-500">{allRooms.length}</div>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-sm">
-            <span className="text-slate-500 mr-2">局数</span>
-            <span className="font-bold">{room.currentRound}/{room.config.totalRounds}</span>
+
+        {/* 钥匙生成区 */}
+        <button 
+          onClick={handleCreateRoom}
+          className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-black p-4 rounded-2xl mb-8 flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+        >
+          <Plus className="w-5 h-5" />
+          生成新房卡 (创建房间)
+        </button>
+
+        {/* 列表区 */}
+        <h2 className="text-sm font-bold text-slate-400 mb-4 px-1">所有房间监控</h2>
+        <div className="space-y-3">
+          {allRooms.map(r => (
+            <div 
+              key={r.id} 
+              onClick={() => handleJoinRoom(r.id)}
+              className="bg-slate-900 p-4 rounded-2xl border border-white/5 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-black text-lg">房号: {r.id}</span>
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded font-bold",
+                    r.status === 'game_over' ? "bg-slate-800 text-slate-400" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  )}>
+                    {r.status === 'game_over' ? '已结束' : '进行中'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-500 flex items-center gap-2">
+                  <Key className="w-3 h-3" /> 钥匙: <span className="font-mono text-yellow-500">{r.config.roomKey}</span>
+                  <span className="ml-2">进度: {r.currentRound}/{r.config.totalRounds}</span>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-600" />
+            </div>
+          ))}
+          {allRooms.length === 0 && (
+            <div className="text-center text-slate-600 text-sm py-10">暂无房间数据</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 2. 房间控制页（核心改牌页）
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col h-[100dvh] overflow-hidden max-w-md mx-auto relative border-x border-white/5 shadow-2xl">
+      {/* Header */}
+      <header className="h-14 bg-slate-900 border-b border-white/10 flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setRoom(null)} className="text-slate-400 hover:text-white p-1">
+            <ArrowRight className="w-5 h-5 rotate-180" />
+          </button>
+          <div>
+            <h1 className="font-black text-sm text-yellow-500">控制台: {room.id}</h1>
+            <div className="text-[10px] text-slate-500">进度: {room.currentRound}/{room.config.totalRounds}</div>
           </div>
-          <button onClick={() => window.location.reload()} className="text-xs bg-red-600/20 text-red-500 px-3 py-1.5 rounded hover:bg-red-600 hover:text-white transition-colors">退出</button>
         </div>
       </header>
 
-      {/* Control Panel */}
-      <div className="bg-slate-900 border-b border-white/10 p-4 shrink-0">
-        <div className="max-w-3xl">
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">全局平衡策略</label>
-          <div className="grid grid-cols-4 gap-2 mt-2">
-            {[
-              { id: 'none', label: '随机' },
-              { id: 'auto_balance', label: '智能收水' },
-              { id: 'dealer_win', label: '庄赢' },
-              { id: 'dealer_lose', label: '庄输' }
-            ].map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => socket.emit('updateConfig', { roomId: room?.id, config: { ...room?.config, controlMode: opt.id } })}
-                className={cn(
-                  "py-2 rounded-xl text-xs font-bold transition-all border",
-                  room?.config.controlMode === opt.id ? "bg-red-600 border-red-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-slate-500 mt-2">智能收水模式下，当某玩家积分超过 500 或低于 -500 时，系统将自动分配“坏牌”或“好牌”干预其第 5 张牌的抽牌结果。</p>
-        </div>
-      </div>
-
-      {/* Main Content - Players */}
-      <div className="flex-1 p-6 overflow-y-auto custom-scrollbar relative">
+      {/* Main Content - Players (全场透视区) */}
+      <div className="flex-1 p-4 overflow-y-auto custom-scrollbar relative">
         {toastMsg && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-2 rounded-full font-black shadow-xl z-50">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-2 rounded-full font-black shadow-xl z-50 text-sm whitespace-nowrap">
             {toastMsg}
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        <div className="space-y-4 pb-20">
           {room.players.map(player => (
             <div key={player.id} className={cn(
-              "bg-slate-900 rounded-2xl border p-5 relative overflow-hidden",
-              player.isDealer ? "border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]" : "border-white/10"
+              "bg-slate-900 rounded-2xl border p-4 relative overflow-hidden",
+              player.isDealer ? "border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.1)]" : "border-white/5",
+              selectedPlayerId === player.id ? "ring-2 ring-yellow-400 bg-slate-800" : ""
             )}>
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="font-black text-lg flex items-center gap-2">
-                    {player.name} 
-                    {player.isDealer && <span className="bg-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded">庄</span>}
-                  </div>
-                  <div className="text-yellow-500 font-mono text-sm mt-1">💰 {player.score}</div>
+              <div className="flex justify-between items-center mb-3">
+                <div className="font-black text-base flex items-center gap-2">
+                  {player.name} 
+                  {player.isDealer && <span className="bg-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded">庄</span>}
                 </div>
-                <div className="text-right text-xs space-y-1">
-                  {player.bidMultiplier > 0 && <div className="text-blue-400">抢 {player.bidMultiplier}倍</div>}
-                  {player.betMultiplier > 0 && <div className="text-emerald-400">下注 {player.betMultiplier}倍</div>}
-                  <div className={cn("font-bold", player.ready ? "text-emerald-500" : "text-slate-500")}>
-                    {player.ready ? '已准备' : '未准备'}
-                  </div>
-                </div>
+                <div className="text-yellow-500 font-mono text-sm">💰 {player.score}</div>
               </div>
 
               {/* Cards */}
-              <div className="flex items-center gap-2 mt-4">
+              <div className="flex items-center justify-between">
                 {/* First 4 Cards */}
-                {player.cards.slice(0, 4).map((card, i) => (
-                  <div key={i} className="w-12 h-16 bg-white rounded flex flex-col items-center justify-center text-sm font-bold shadow-md">
-                    <div className={['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black"}>{card.value}</div>
-                    <div className={['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black"}>{card.suit}</div>
-                  </div>
-                ))}
+                <div className="flex gap-1">
+                  {player.cards.slice(0, 4).map((card, i) => (
+                    <div key={i} className="w-8 h-12 bg-white rounded flex flex-col items-center justify-center text-[10px] font-bold shadow-sm">
+                      <div className={['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black"}>{card.value}</div>
+                      <div className={['♥', '♦'].includes(card.suit) ? "text-red-600" : "text-black"}>{card.suit}</div>
+                    </div>
+                  ))}
+                  {player.cards.length === 0 && <div className="text-xs text-slate-600 italic py-2">等待发牌...</div>}
+                </div>
                 
                 {/* 5th Card (Preset or Requested) */}
                 {(room.status === 'dealing_5' || room.status === 'playing' || room.status === 'finished') && (
-                  <div className="flex items-center gap-2 ml-4 relative">
-                    <ArrowRight className="w-4 h-4 text-slate-600" />
-                    <div 
-                      onClick={() => setSelectedPlayerId(selectedPlayerId === player.id ? null : player.id)}
-                      className={cn(
-                        "w-12 h-16 rounded flex flex-col items-center justify-center text-sm font-bold shadow-md cursor-pointer transition-all border-2",
-                        selectedPlayerId === player.id ? "border-yellow-400 animate-pulse scale-110" : "border-transparent",
-                        player.presetFifthCard || player.fifthCardRequested ? "bg-yellow-100" : "bg-slate-800 border-dashed border-slate-600 hover:border-yellow-500/50"
-                      )}
-                    >
-                      {player.presetFifthCard ? (
-                        <>
-                          <div className={['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black"}>{player.presetFifthCard.value}</div>
-                          <div className={['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black"}>{player.presetFifthCard.suit}</div>
-                          <div className="absolute -top-2 -right-2 text-[8px] bg-red-600 px-1 rounded-full text-white">改</div>
-                        </>
-                      ) : player.fifthCardRequested && player.cards[4] ? (
-                        <>
-                          <div className={['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black"}>{player.cards[4].value}</div>
-                          <div className={['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black"}>{player.cards[4].suit}</div>
-                        </>
-                      ) : (
-                        <div className="text-slate-500 text-[10px]">待搓牌</div>
-                      )}
-                    </div>
+                  <div 
+                    onClick={() => setSelectedPlayerId(selectedPlayerId === player.id ? null : player.id)}
+                    className={cn(
+                      "w-10 h-14 rounded flex flex-col items-center justify-center text-[10px] font-bold shadow-md cursor-pointer transition-all border",
+                      selectedPlayerId === player.id ? "border-yellow-400 animate-pulse scale-110" : "border-transparent",
+                      player.presetFifthCard || player.fifthCardRequested ? "bg-yellow-100" : "bg-slate-800 border-dashed border-slate-600 hover:border-yellow-500/50"
+                    )}
+                  >
+                    {player.presetFifthCard ? (
+                      <>
+                        <div className={['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black"}>{player.presetFifthCard.value}</div>
+                        <div className={['♥', '♦'].includes(player.presetFifthCard.suit) ? "text-red-600" : "text-black"}>{player.presetFifthCard.suit}</div>
+                        <div className="absolute -top-1 -right-1 text-[8px] bg-red-600 px-1 rounded-full text-white">改</div>
+                      </>
+                    ) : player.fifthCardRequested && player.cards[4] ? (
+                      <>
+                        <div className={['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black"}>{player.cards[4].value}</div>
+                        <div className={['♥', '♦'].includes(player.cards[4].suit) ? "text-red-600" : "text-black"}>{player.cards[4].suit}</div>
+                      </>
+                    ) : (
+                      <div className="text-slate-500 text-[8px] text-center px-1">点此<br/>换牌</div>
+                    )}
                   </div>
                 )}
               </div>
-
+              
               {/* Hand Type */}
               {player.finish && (
-                <div className="absolute bottom-2 right-2 text-xs font-black bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30">
+                <div className="absolute bottom-2 right-2 text-[10px] font-black bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">
                   {getBullName(player.bull)}
                 </div>
               )}
             </div>
           ))}
+          {room.players.length === 0 && <div className="text-center text-slate-500 py-10">等待玩家加入...</div>}
         </div>
       </div>
 
-      {/* Footer - Deck Pool */}
+      {/* Footer - Deck Pool (牌库网格 4x13) */}
       <div className={cn(
-        "bg-slate-900 border-t border-white/10 p-4 transition-all shrink-0",
+        "bg-slate-900 border-t border-white/10 p-2 pb-safe transition-all shrink-0 z-10 relative",
         selectedPlayerId ? "ring-2 ring-yellow-500 shadow-[0_-10px_30px_rgba(234,179,8,0.2)]" : ""
       )}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-bold text-slate-400">
-            {selectedPlayerId ? (
-              <span className="text-yellow-500 flex items-center gap-2">
-                <Zap className="w-4 h-4" /> 
-                请从下方牌池中为玩家选择一张牌
-              </span>
-            ) : "剩余牌池 (点击玩家的第5张牌以改牌)"}
+        {selectedPlayerId && (
+          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-xs font-bold px-4 py-1 rounded-t-lg shadow-lg whitespace-nowrap flex items-center gap-1">
+            <Zap className="w-3 h-3" /> 指令就绪：请选一张牌
           </div>
-          <div className="text-xs text-slate-500">剩余: {room.remainingDeck?.length || 0} 张</div>
-        </div>
-
+        )}
         <div className="grid grid-rows-4 gap-1">
           {SUITS.map(suit => (
             <div key={suit} className="flex gap-1">
@@ -270,20 +297,15 @@ export default function App() {
                     disabled={!isAvailable || !selectedPlayerId}
                     onClick={() => handleSelectDeckCard({ suit, value })}
                     className={cn(
-                      "flex-1 h-10 rounded flex items-center justify-center text-sm font-bold transition-all relative overflow-hidden",
-                      isAvailable ? "bg-white cursor-pointer hover:scale-105" : "bg-slate-800 text-slate-700 cursor-not-allowed opacity-30",
+                      "flex-1 h-8 sm:h-10 rounded flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all relative overflow-hidden",
+                      isAvailable ? "bg-white cursor-pointer active:scale-90" : "bg-slate-800 text-slate-700 cursor-not-allowed opacity-30",
                       ['♥', '♦'].includes(suit) && isAvailable ? "text-red-600" : "text-black",
-                      winningMatch ? "ring-2 ring-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.6)] z-10" : ""
+                      winningMatch ? "ring-2 ring-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.6)] z-10" : ""
                     )}
                   >
                     {value}{suit}
                     {winningMatch && (
                       <div className="absolute inset-0 bg-yellow-400/20" />
-                    )}
-                    {winningMatch && (
-                      <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[8px] px-1 rounded-bl">
-                        {winningMatch.bull >= 11 ? '炸' : '牛'}
-                      </div>
                     )}
                   </button>
                 );

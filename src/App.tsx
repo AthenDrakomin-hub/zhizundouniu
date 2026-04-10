@@ -41,35 +41,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
       )}
     >
       {/* Score Change Animation */}
-      <AnimatePresence>
-        {scoreChange !== undefined && (
-          <motion.div
-            initial={{ y: 0, opacity: 0, scale: 0.5 }}
-            animate={{ 
-              y: [-20, -100, -80], 
-              opacity: [0, 1, 1], 
-              scale: [0.5, 1.8, 1.5] 
-            }}
-            transition={{ 
-              duration: 1.5,
-              times: [0, 0.3, 1],
-              ease: "easeOut"
-            }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className={cn(
-              "absolute top-0 z-[100] font-black text-3xl drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] pointer-events-none flex flex-col items-center",
-              scoreChange > 0 ? "text-emerald-400" : "text-red-500"
-            )}
-          >
-            <motion.span
-              animate={{ y: [0, -10, 0] }}
-              transition={{ repeat: Infinity, duration: 0.5 }}
-            >
-              {scoreChange > 0 ? `+${scoreChange}` : scoreChange}
-            </motion.span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Moved to side of avatar */}
 
       {/* Avatar & Info */}
       <div className="relative group">
@@ -122,18 +94,38 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
       <div className="text-center bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/5 shadow-xl min-w-[100px]">
         <div className="text-xs sm:text-sm font-black truncate text-white mb-0.5">{player.name}</div>
         <div className="text-[10px] sm:text-xs text-yellow-500 font-mono font-black">💰 {player.score}</div>
-        
-        {roomStatus === 'finished' && player.lastWin !== 0 && (
-          <motion.div 
-            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="mt-1 pt-1 border-t border-white/5"
+      </div>
+
+      {/* Score Change Animation attached to avatar instead of card */}
+      <AnimatePresence>
+        {scoreChange !== undefined && (
+          <motion.div
+            initial={{ y: 0, opacity: 0, scale: 0.5 }}
+            animate={{ 
+              y: [-20, -100, -80], 
+              opacity: [0, 1, 1], 
+              scale: [0.5, 1.8, 1.5] 
+            }}
+            transition={{ 
+              duration: 1.5,
+              times: [0, 0.3, 1],
+              ease: "easeOut"
+            }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className={cn(
+              "absolute top-1/2 left-full ml-4 z-[100] font-black text-3xl drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] pointer-events-none flex flex-col items-center",
+              scoreChange > 0 ? "text-emerald-400" : "text-red-500"
+            )}
           >
-            <div className={cn("text-[10px] font-black", player.lastWin > 0 ? "text-emerald-400" : "text-red-400")}>
-              {player.lastWin > 0 ? `+${player.lastWin}` : player.lastWin}
-            </div>
+            <motion.span
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 0.5 }}
+            >
+              {scoreChange > 0 ? `+${scoreChange}` : scoreChange}
+            </motion.span>
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       {/* Action Indicators */}
       <div className="flex gap-1 h-5">
@@ -156,7 +148,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
 
       {/* Cards */}
       <div className="relative h-16 sm:h-24 w-24 sm:w-32 mt-2">
-        <div className="flex -space-x-8 sm:-space-x-12 justify-center">
+        <div className="flex justify-center gap-1">
           {(() => {
             const numCards = (roomStatus === 'dealing_4' || roomStatus === 'bidding' || roomStatus === 'betting') ? 4 : 5;
             const displayCards = [];
@@ -186,16 +178,16 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
                   }
                 }}
                 className={cn(
-                  "transition-transform hover:-translate-y-2",
+                  "transition-transform hover:-translate-y-2 w-10 sm:w-14",
                   isSelf && "cursor-pointer",
-                  isSelf && i === 4 && roomStatus === 'playing' && !player.finish && "ring-4 ring-yellow-500 ring-offset-4 ring-offset-black scale-110 z-30 rotate-[-5deg]"
+                  isSelf && i === 4 && roomStatus === 'playing' && !player.finish && "ring-4 ring-yellow-500 ring-offset-4 ring-offset-black scale-125 z-30 ml-4 rotate-[-5deg]"
                 )}
               />
             ));
           })()}
           {player.cards.length === 0 && roomStatus !== 'waiting' && (
-             <div className="flex -space-x-8 sm:-space-x-12">
-               {[0,1,2,3,4].map(i => <CardComp key={i} index={i} hidden />)}
+             <div className="flex gap-1">
+               {[0,1,2,3,4].map(i => <CardComp key={i} index={i} hidden className="w-10 sm:w-14" />)}
              </div>
           )}
         </div>
@@ -539,76 +531,46 @@ export default function App() {
 
   if (!isJoined) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 font-sans relative overflow-hidden">
-        {/* Brushed Metal Texture Overlay */}
-        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')]" />
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Metal Texture */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum-dark.png')] opacity-30" />
         
-        {/* Gold Accent Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-yellow-600/10 rounded-full blur-[150px]" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-yellow-900/10 rounded-full blur-[150px]" />
-        </div>
-
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="relative z-10 w-full max-w-md bg-gradient-to-b from-slate-900/80 to-black/90 backdrop-blur-3xl p-10 rounded-[3rem] border border-yellow-500/20 shadow-[0_0_80px_rgba(234,179,8,0.15)] text-center"
-        >
-          {/* Golden Bull Head Breathing Effect */}
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.05, 1],
-              filter: ["drop-shadow(0 0 10px rgba(234,179,8,0.3))", "drop-shadow(0 0 30px rgba(234,179,8,0.6))", "drop-shadow(0 0 10px rgba(234,179,8,0.3))"]
-            }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="w-32 h-32 bg-gradient-to-br from-yellow-400 via-yellow-600 to-yellow-800 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl relative"
-          >
-            <div className="absolute inset-1 bg-black rounded-full flex items-center justify-center">
-              <Trophy className="w-16 h-16 text-yellow-500" />
-            </div>
-          </motion.div>
+        {/* Center Content */}
+        <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
+          <Crown className="w-24 h-24 text-yellow-500 mb-8" />
           
-          <h1 className="text-5xl font-black mb-2 bg-gradient-to-b from-yellow-100 via-yellow-400 to-yellow-700 bg-clip-text text-transparent tracking-tighter">至尊斗牛</h1>
-          <p className="text-yellow-500/60 font-bold tracking-[0.4em] text-[10px] uppercase mb-12">Supreme Fight Bull</p>
-
-          <form onSubmit={handleJoin} className="space-y-6">
-            <div className="space-y-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  placeholder="输入您的尊姓大名"
-                  className="w-full bg-black/40 border border-yellow-500/20 rounded-2xl px-6 py-5 focus:outline-none focus:border-yellow-500/60 transition-all placeholder:text-slate-700 text-lg font-bold text-center tracking-wide"
-                  required
-                />
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
-                  placeholder="输入 6 位房间钥匙"
-                  className="w-full bg-black/40 border border-yellow-500/20 rounded-2xl px-6 py-5 focus:outline-none focus:border-yellow-500/60 transition-all placeholder:text-slate-700 text-2xl font-black text-center tracking-[0.2em]"
-                  maxLength={6}
-                  required
-                />
-              </div>
+          <form onSubmit={handleJoin} className="w-full relative flex flex-col gap-6">
+            <input
+              type="text"
+              placeholder="您的尊姓大名"
+              value={tempName}
+              onChange={e => setTempName(e.target.value)}
+              className="w-full bg-transparent border-b-2 border-yellow-500/50 p-4 text-center text-2xl font-black text-yellow-500 focus:border-yellow-400 outline-none placeholder:text-yellow-500/20"
+              required
+            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="_ _ _ _ _ _"
+                value={roomId}
+                onChange={e => setRoomId(e.target.value.toUpperCase())}
+                maxLength={6}
+                className="w-full bg-transparent border-b-2 border-yellow-500/50 p-4 text-center text-4xl font-black text-yellow-500 tracking-[0.5em] focus:border-yellow-400 outline-none placeholder:text-yellow-500/20 uppercase placeholder:tracking-normal"
+                required
+              />
+              {roomId.length === 6 && tempName && (
+                <motion.button 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  type="submit" 
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-yellow-500 hover:text-yellow-400"
+                >
+                  <ArrowRight className="w-8 h-8" />
+                </motion.button>
+              )}
             </div>
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-b from-yellow-300 via-yellow-500 to-yellow-700 hover:from-yellow-200 hover:to-yellow-600 text-black font-black py-6 rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-4 text-2xl group"
-            >
-              <Play className="w-8 h-8 fill-current group-hover:scale-110 transition-transform" />
-              开启博弈
-            </button>
           </form>
-
-          <div className="mt-12 pt-8 border-t border-yellow-500/10 flex items-start gap-4 text-[10px] text-yellow-500/40 leading-relaxed text-left italic">
-            <Info className="w-5 h-5 text-yellow-700 shrink-0" />
-            <p>本会所采用纯钥匙邀请制。SFB系列激活码由房主发放。20局总结算，无抽水，输赢透明。请文明博弈，祝君好运。</p>
-          </div>
-        </motion.div>
+        </div>
       </div>
     );
   }

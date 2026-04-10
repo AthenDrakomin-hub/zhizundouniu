@@ -131,13 +131,55 @@ async function startServer() {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('adminLogin', ({ roomId, roomKey }) => {
-      const room = rooms.get(roomId);
-      if (room && room.config.roomKey === roomKey.toUpperCase()) {
-        socket.join(`admin_${roomId}`);
-        socket.emit('adminLoginSuccess', room);
+    socket.on('adminLogin', ({ adminKey }) => {
+      // 简单模拟一个超级管理员密码校验
+      if (adminKey === 'admin123') {
+        socket.join('admin_global');
+        socket.emit('adminLoginSuccess', Array.from(rooms.values()));
       } else {
-        socket.emit('error', '房卡钥匙错误或房间不存在');
+        socket.emit('error', '管理员密码错误');
+      }
+    });
+
+    socket.on('adminCreateRoom', () => {
+      const roomId = Math.floor(100000 + Math.random() * 899999).toString();
+      const roomKey = Math.floor(100000 + Math.random() * 899999).toString();
+      const newRoom = {
+        id: roomId,
+        players: [],
+        status: 'waiting',
+        dealerId: null,
+        lastWinnerId: null,
+        prevRoundNoBull: false,
+        currentRound: 0,
+        phaseStartTime: Date.now(),
+        serialNumber: `SN-${Date.now().toString(36).toUpperCase()}`,
+        remainingDeck: [],
+        config: {
+          maxPlayers: 5,
+          multiplierRule: 'competitive',
+          dealerRule: 'winner',
+          allowPushBet: true,
+          noBullLimit: false,
+          gameMode: 'rounds',
+          totalRounds: 20,
+          timeoutSeconds: 15,
+          roomKey: roomKey,
+          controlMode: 'none',
+          autoBalanceThreshold: 500,
+          baseScore: 1
+        }
+      };
+      rooms.set(roomId, newRoom);
+      saveRoomToDB(newRoom);
+      io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
+    });
+
+    socket.on('adminJoinRoom', ({ roomId }) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        socket.join(`admin_${roomId}`);
+        socket.emit('roomUpdate', room);
       }
     });
 
@@ -427,6 +469,7 @@ async function startServer() {
 
     // Send full room state to admins
     io.to(`admin_${roomId}`).emit('roomUpdate', room);
+    io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
 
     // Deep clone room and strip sensitive info for regular players
     const safeRoom = JSON.parse(JSON.stringify(room));
