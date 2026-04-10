@@ -20,7 +20,7 @@ jobs:
 
     - name: Install Dependencies
       run: |
-        rm -rf node_modules package-lock.json
+        rm -rf node_modules package-lock.json @tailwindcss
         npm install --legacy-peer-deps
         cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps
 
@@ -67,7 +67,7 @@ jobs:
           fi
           
           # Install dependencies
-          rm -rf node_modules package-lock.json
+          rm -rf node_modules package-lock.json @tailwindcss
           npm install --legacy-peer-deps
           cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && cd ..
           
