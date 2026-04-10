@@ -606,7 +606,7 @@ export default function App() {
       <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
         {/* Full-bleed immersive background */}
         <div className="absolute inset-0 z-[-10]">
-          <img src="/images/ui/qian.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
+          <img src="/images/ui/youxibeijing.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/80" />
         </div>
         
@@ -697,7 +697,7 @@ export default function App() {
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
       {/* Poker Table Background */}
       <div className="absolute inset-0 pointer-events-none opacity-100 z-[-10]">
-        <img src="/images/ui/qian.png" alt="background" className="w-full h-full object-cover scale-105" />
+        <img src="/images/ui/youxibeijing.png" alt="background" className="w-full h-full object-cover scale-105" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/80" />
       </div>
 
