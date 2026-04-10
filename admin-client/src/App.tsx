@@ -398,10 +398,13 @@ export default function App() {
 
                 {/* Target Win Rate Control */}
                 <div className="mt-4 pt-3 border-t border-white/10">
-                  <div className="flex justify-between text-[10px] mb-2">
-                    <span className="text-red-400 font-bold">压制 (0%)</span>
-                    <span className="text-white/50">系统胜率调控: <span className="text-red-400 font-bold">{player.targetWinRate ?? 50}%</span></span>
-                    <span className="text-emerald-500 font-bold">放水 (100%)</span>
+                  <div className="flex justify-between text-[10px] mb-2 font-bold tracking-widest">
+                    <span className="text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">点杀 (0%)</span>
+                    <span className="text-white/50">系统胜率调控: <span className={cn(
+                      "font-black ml-1 text-sm",
+                      (player.targetWinRate ?? 50) < 50 ? "text-red-500" : (player.targetWinRate ?? 50) > 50 ? "text-yellow-500" : "text-white"
+                    )}>{player.targetWinRate ?? 50}%</span></span>
+                    <span className="text-yellow-500 drop-shadow-[0_0_5px_rgba(234,179,8,0.8)]">放水 (100%)</span>
                   </div>
                   <input 
                     type="range" 
@@ -412,7 +415,11 @@ export default function App() {
                       const newRate = parseInt(e.target.value);
                       socket.emit('adminSetWinRate', { roomId: room.id, userId: player.id, winRate: newRate });
                     }}
-                    className="w-full h-2 bg-gradient-to-r from-red-600 via-slate-500 to-emerald-500 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-2.5 bg-gradient-to-r from-red-600 via-slate-700 to-yellow-500 rounded-full appearance-none cursor-pointer shadow-inner
+                               [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 
+                               [&::-webkit-slider-thumb]:bg-gradient-to-b [&::-webkit-slider-thumb]:from-yellow-300 [&::-webkit-slider-thumb]:to-yellow-600 
+                               [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black 
+                               [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(234,179,8,0.8)] [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
                   />
                 </div>
               </div>

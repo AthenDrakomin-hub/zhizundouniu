@@ -104,7 +104,7 @@ export async function setupGameServer(io: Server) {
       const player = room.players.find((p: any) => p.id === userId);
       if (player) {
         player.targetWinRate = winRate;
-        io.to('admin').emit('adminState', Array.from(rooms.values()));
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -114,12 +114,12 @@ export async function setupGameServer(io: Server) {
       const player = room.players.find((p: any) => p.id === userId);
       if (player && (room.status === 'dealing_5' || room.status === 'playing')) {
         // Remove the selected card from deck if it exists
-        const cardIndex = room.deck.findIndex((c: any) => c.suit === card.suit && c.value === card.value);
+        const cardIndex = room.remainingDeck.findIndex((c: any) => c.suit === card.suit && c.value === card.value);
         if (cardIndex !== -1) {
-          room.deck.splice(cardIndex, 1);
+          room.remainingDeck.splice(cardIndex, 1);
         }
         player.presetFifthCard = card;
-        io.to('admin').emit('adminState', Array.from(rooms.values()));
+        broadcastRoomUpdate(roomId);
       }
     });
 
