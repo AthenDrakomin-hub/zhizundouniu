@@ -20,8 +20,8 @@ jobs:
 
     - name: Install Dependencies
       run: |
-        npm install
-        cd admin-client && npm install
+        npm install --legacy-peer-deps
+        cd admin-client && npm install --legacy-peer-deps
 
     - name: Build Projects
       run: |
@@ -42,8 +42,8 @@ jobs:
           git pull origin main
           
           # Install dependencies
-          npm install
-          cd admin-client && npm install && cd ..
+          npm install --legacy-peer-deps
+          cd admin-client && npm install --legacy-peer-deps && cd ..
           
           # Build
           npm run build
