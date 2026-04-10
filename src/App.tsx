@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, ShieldCheck, Zap, Eye, Crown, Ghost, Volume2, VolumeX, EyeOff, ArrowRight, MessageSquare } from 'lucide-react';
+import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, ShieldCheck, Zap, Eye, Crown, Ghost, Volume2, VolumeX, EyeOff, ArrowRight, MessageSquare, Gamepad2, Home, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X } from 'lucide-react';
 import { Card as CardComp } from './components/Card';
 import { Room, Player, Card } from './types';
 import { calculateBull, getBullName } from './lib/gameLogic';
 import confetti from 'canvas-confetti';
 import html2canvas from 'html2canvas';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from './lib/utils';
+import { Lobby } from './components/Lobby';
 
 const socket: Socket = io();
 
@@ -652,87 +648,16 @@ export default function App() {
 
   if (!isJoined) {
     return (
-      <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        {/* Full-bleed immersive background */}
-        <div className="absolute inset-0 z-[-10]">
-          <img src="/images/ui/qian.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/80" />
-        </div>
-        
-        {/* Center Content */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-[380px] flex flex-col items-center mt-12"
-        >
-          
-          {/* Solid Premium Card (No transparency) */}
-          <div className="w-full bg-[#FDFBF7] rounded-[2rem] pt-16 pb-8 px-8 shadow-[0_20px_60px_rgba(0,0,0,0.8)] border-4 border-[#E8DCC4] flex flex-col items-center relative overflow-visible mt-16">
-            
-            {/* Inner decorative border */}
-            <div className="absolute inset-2 border border-[#D4AF37]/30 rounded-[1.5rem] pointer-events-none" />
-
-            {/* Overlapping Logo (Half outside, half inside) */}
-            <div className="absolute -top-[100px] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-              {/* Note: mix-blend-plus-lighter works well to remove the dark red background from the logo, 
-                  leaving mostly the golden bull and text visible against light/dark backgrounds */}
-              <img 
-                src="/images/ui/logo3.png" 
-                alt="Logo" 
-                loading="lazy" 
-                className="w-48 h-48 object-contain drop-shadow-[0_10px_20px_rgba(139,0,0,0.6)] mix-blend-darken" 
-                style={{
-                  filter: "contrast(1.2) brightness(1.1) drop-shadow(0 0 10px rgba(255,215,0,0.5))"
-                }}
-              />
-            </div>
-            
-            <form onSubmit={handleJoin} className="w-full flex flex-col gap-5 relative z-10 mt-4">
-              {/* Name Input */}
-              <div className="relative bg-[#4A4A4A] rounded-xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border-2 border-transparent focus-within:border-[#D4AF37] transition-colors">
-                <span className="text-[#D4AF37] font-bold shrink-0 whitespace-nowrap text-sm">大名</span>
-                <div className="w-[1px] h-4 bg-[#666666] mx-3 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="请输入您的尊姓大名"
-                  value={tempName}
-                  onChange={e => setTempName(e.target.value)}
-                  className="w-full bg-transparent text-white text-sm font-bold outline-none placeholder:text-[#999999] placeholder:font-normal"
-                  required
-                />
-              </div>
-
-              {/* Room ID Input */}
-              <div className="relative bg-[#4A4A4A] rounded-xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border-2 border-transparent focus-within:border-[#D4AF37] transition-colors">
-                <span className="text-[#D4AF37] font-bold shrink-0 whitespace-nowrap text-sm">房号</span>
-                <div className="w-[1px] h-4 bg-[#666666] mx-3 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="输入6位房间钥匙"
-                  value={roomId}
-                  onChange={e => setRoomId(e.target.value.toUpperCase())}
-                  maxLength={6}
-                  className="w-full bg-transparent text-[#F2C94C] text-lg font-black tracking-[0.2em] outline-none placeholder:text-[#999999] placeholder:font-normal placeholder:tracking-normal uppercase"
-                  required
-                />
-                {roomId.length === 6 && tempName && (
-                  <motion.button 
-                    initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
-                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                    type="submit" 
-                    className="absolute right-2 p-2.5 bg-gradient-to-b from-[#F2C94C] to-[#D4AF37] text-[#4A0000] rounded-lg shadow-md hover:brightness-110 active:scale-95 transition-all border border-[#FFF5D1]"
-                  >
-                    <ArrowRight className="w-6 h-6 stroke-[3]" />
-                  </motion.button>
-                )}
-              </div>
-            </form>
-          </div>
-          
-          <p className="mt-6 text-[10px] text-white/50 tracking-[0.2em] uppercase font-medium">Supreme VIP Club</p>
-        </motion.div>
-      </div>
+      <Lobby
+        onJoin={(rId, tName) => {
+          const newUser = { id: Math.random().toString(36).substr(2, 9), name: tName };
+          socket.emit('joinRoom', { roomId: rId, user: newUser });
+        }}
+        tempName={tempName}
+        setTempName={setTempName}
+        roomId={roomId}
+        setRoomId={setRoomId}
+      />
     );
   }
 
