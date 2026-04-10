@@ -23,7 +23,6 @@ export default function App() {
   const [room, setRoom] = useState<Room | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState('');
-  const [showKeyModal, setShowKeyModal] = useState<string | null>(null);
 
   useEffect(() => {
     socket.on('adminLoginSuccess', (rooms: Room[]) => {
