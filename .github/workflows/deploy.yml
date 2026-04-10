@@ -44,8 +44,11 @@ jobs:
 
             # 3. 安装依赖并构建
             # 【重要保留】：保留了解决 npm Tailwind Bug 的清除指令和 --legacy-peer-deps
+            # 【重要新增】：强制 sqlite3 在本地服务器根据当前 GLIBC 重新编译，避免跨环境绑定库错误
             rm -rf node_modules package-lock.json @tailwindcss
             npm install --legacy-peer-deps
+            npm rebuild sqlite3 --build-from-source
+            
             cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && cd ..
             
             npm run build
