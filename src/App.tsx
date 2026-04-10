@@ -566,8 +566,8 @@ export default function App() {
       <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
         {/* Full-bleed immersive background */}
         <div className="absolute inset-0 z-[-10]">
-          <img src="/images/niuniu/bg.jpg" alt="background" className="w-full h-full object-cover scale-105 blur-[2px]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/90" />
+          <img src="<images_data_path>" alt="background" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/10 to-black/80" />
         </div>
         
         {/* Center Content */}
