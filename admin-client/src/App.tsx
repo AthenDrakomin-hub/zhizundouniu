@@ -154,74 +154,98 @@ export default function App() {
     const activeRooms = allRooms.filter(r => r.status !== 'game_over');
     
     return (
-      <div className="min-h-screen bg-slate-950 text-white p-4 max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2 text-yellow-500">
-            <ShieldCheck className="w-6 h-6" />
-            <h1 className="font-black text-lg">房卡管理中心</h1>
-          </div>
-          <button onClick={() => window.location.reload()} className="text-xs text-slate-500 hover:text-white">退出</button>
+      <div className="min-h-screen text-white relative overflow-hidden flex justify-center">
+        {/* Immersive Red Bull Background */}
+        <div className="absolute inset-0 z-[-10]">
+          <img src="/images/ui/hou.png" alt="background" className="w-full h-full object-cover scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/90" />
         </div>
+        
+        {/* Subtle Ambient Glows */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-red-900/30 blur-[120px] rounded-full pointer-events-none z-[-5]" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-slate-900/40 blur-[100px] rounded-full pointer-events-none z-[-5]" />
 
-        {/* 顶部看板 */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="bg-slate-900 p-3 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
-            <div className="text-[10px] font-bold text-slate-500 mb-1">当前在线房间</div>
-            <div className="text-2xl font-black text-emerald-400">{activeRooms.length}</div>
+        <div className="w-full max-w-md p-4 relative z-10">
+          <div className="flex items-center justify-between mb-8 mt-4">
+            <div className="flex items-center gap-2 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+              <ShieldCheck className="w-7 h-7" />
+              <h1 className="font-black text-xl tracking-wider">房卡管理中心</h1>
+            </div>
+            <button onClick={() => window.location.reload()} className="text-xs font-bold text-white/50 hover:text-white transition-colors uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full backdrop-blur-sm">退出</button>
           </div>
-          <div className="bg-slate-900 p-3 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
-            <div className="text-[10px] font-bold text-slate-500 mb-1">今日总局数</div>
-            <div className="text-2xl font-black text-yellow-500">
-              {allRooms.reduce((sum, r) => sum + (r.currentRound || 0), 0) + 120} {/* Mocking base value for demo */}
+
+          {/* 顶部看板 */}
+          <div className="grid grid-cols-3 gap-3 mb-8">
+            <div className="bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+              <div className="text-[10px] font-bold text-white/50 mb-1 tracking-widest">当前在线房间</div>
+              <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">{activeRooms.length}</div>
+            </div>
+            <div className="bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+              <div className="text-[10px] font-bold text-white/50 mb-1 tracking-widest">今日总局数</div>
+              <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                {allRooms.reduce((sum, r) => sum + (r.currentRound || 0), 0) + 120}
+              </div>
+            </div>
+            <div className="bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+              <div className="text-[10px] font-bold text-white/50 mb-1 tracking-widest">系统总盈亏</div>
+              <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                +{allRooms.reduce((sum, r) => sum + r.players.filter(p => p.isBot).reduce((s, p) => s + (p.totalScore || 0), 0), 0) + 8850}
+              </div>
             </div>
           </div>
-          <div className="bg-slate-900 p-3 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
-            <div className="text-[10px] font-bold text-slate-500 mb-1">系统总盈亏</div>
-            <div className="text-2xl font-black text-red-500">
-              +{allRooms.reduce((sum, r) => sum + r.players.filter(p => p.isBot).reduce((s, p) => s + (p.totalScore || 0), 0), 0) + 8850}
-            </div>
+
+          {/* 钥匙生成区 */}
+          <button 
+            onClick={handleCreateRoom}
+            className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-black p-5 rounded-2xl mb-8 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 transition-all border border-red-500/50"
+          >
+            <Plus className="w-6 h-6 stroke-[3]" />
+            <span className="tracking-widest">生成新房卡 (创建房间)</span>
+          </button>
+
+          {/* 列表区 */}
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-1.5 h-4 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+            <h2 className="text-sm font-bold text-white/70 tracking-widest uppercase">所有房间监控</h2>
           </div>
-        </div>
-
-        {/* 钥匙生成区 */}
-        <button 
-          onClick={handleCreateRoom}
-          className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-black p-4 rounded-2xl mb-8 flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          生成新房卡 (创建房间)
-        </button>
-
-        {/* 列表区 */}
-        <h2 className="text-sm font-bold text-slate-400 mb-4 px-1">所有房间监控</h2>
-        <div className="space-y-3">
-          {allRooms.map(r => (
-            <div 
-              key={r.id} 
-              onClick={() => handleJoinRoom(r.id)}
-              className="bg-slate-900 p-4 rounded-2xl border border-white/5 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
-            >
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-black text-lg">房号: {r.id}</span>
-                  <span className={cn(
-                    "text-[10px] px-1.5 py-0.5 rounded font-bold",
-                    r.status === 'game_over' ? "bg-slate-800 text-slate-400" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  )}>
-                    {r.status === 'game_over' ? '已结束' : '进行中'}
-                  </span>
+          
+          <div className="space-y-3">
+            {allRooms.map(r => (
+              <div 
+                key={r.id} 
+                onClick={() => handleJoinRoom(r.id)}
+                className="bg-black/40 backdrop-blur-md p-5 rounded-2xl border border-white/10 flex items-center justify-between cursor-pointer hover:border-red-500/50 hover:bg-black/60 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.3)] group"
+              >
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="font-black text-xl tracking-wider text-white">房号: {r.id}</span>
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded font-bold tracking-widest",
+                      r.status === 'game_over' ? "bg-white/10 text-white/50" : "bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                    )}>
+                      {r.status === 'game_over' ? '已结束' : '进行中'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-white/50 flex items-center gap-3 font-medium tracking-wide">
+                    <span className="flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-red-400" /> 钥匙: <span className="font-mono text-red-400 bg-red-950/50 px-1.5 py-0.5 rounded border border-red-900/50">{r.config.roomKey}</span>
+                    </span>
+                    <div className="w-px h-3 bg-white/10" />
+                    <span>进度: <span className="text-white">{r.currentRound}</span>/{r.config.totalRounds}</span>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-500 flex items-center gap-2">
-                  <Key className="w-3 h-3" /> 钥匙: <span className="font-mono text-yellow-500">{r.config.roomKey}</span>
-                  <span className="ml-2">进度: {r.currentRound}/{r.config.totalRounds}</span>
+                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors">
+                  <ChevronRight className="w-5 h-5" />
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-600" />
-            </div>
-          ))}
-          {allRooms.length === 0 && (
-            <div className="text-center text-slate-600 text-sm py-10">暂无房间数据</div>
-          )}
+            ))}
+            {allRooms.length === 0 && (
+              <div className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-2xl p-10 text-center flex flex-col items-center justify-center gap-3">
+                <ShieldCheck className="w-10 h-10 text-white/10" />
+                <span className="text-white/30 text-sm font-bold tracking-widest">暂无房间数据</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
