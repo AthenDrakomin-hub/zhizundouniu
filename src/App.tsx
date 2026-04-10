@@ -80,18 +80,23 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
   const isWinner = roomStatus === 'finished' && player.lastWin > 0;
   const avatarRef = useRef<HTMLDivElement>(null);
 
+  const isBoy = player.id.charCodeAt(0) % 2 === 0;
+  const avatarUrl = isBoy ? '/images/ui/head_boy.png' : '/images/ui/head_girl.png';
+  const frameUrl = '/images/ui/head_frame.png';
+
   return (
     <motion.div
       layout
       className={cn(
-        "absolute flex flex-col items-center gap-2",
+        "absolute flex flex-col items-center gap-3 transition-all duration-500",
         position === "bottom" && "bottom-4 left-1/2 -translate-x-1/2",
         position === "top-left" && "top-12 left-12",
         position === "top-right" && "top-12 right-12",
         position === "mid-left" && "top-1/2 left-4 -translate-y-1/2",
         position === "mid-right" && "top-1/2 right-4 -translate-y-1/2",
         isMegaWin && "animate-shake z-[100]",
-        isMarquee && "z-[110]"
+        isMarquee && "z-[110]",
+        isSelf ? "scale-110 z-20" : "scale-90 z-10"
       )}
     >
       {/* Winner Light Effect */}
@@ -131,17 +136,24 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
             }
           }}
           className={cn(
-          "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-[#1e1e1e] shadow-[0_4px_10px_rgba(0,0,0,0.8)] transition-all relative overflow-hidden cursor-pointer",
-          isDealer ? "border-[#D4AF37] scale-105 ring-2 ring-[#D4AF37]/30" : (player.ready ? "border-blue-500" : "border-[#8B7355]"),
-          isMegaWin && "mega-win",
-          isMarquee && "ring-4 ring-yellow-400 ring-offset-4 ring-offset-black/50 shadow-[0_0_30px_rgba(234,179,8,0.8)] animate-pulse"
-        )}>
-          {/* Avatar Background Glow */}
-          <div className={cn(
-            "absolute inset-0 opacity-30",
-            isDealer ? "bg-[#D4AF37]" : (player.ready ? "bg-blue-500" : "bg-transparent")
-          )} />
-          <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${player.id}&backgroundColor=1e293b`} alt="avatar" className="w-full h-full object-cover relative z-10" />
+            "w-16 h-16 sm:w-20 sm:h-20 mt-2 flex items-center justify-center font-bold text-lg overflow-visible cursor-pointer relative",
+            isMarquee && "ring-4 ring-yellow-400 ring-offset-4 ring-offset-black/50 shadow-[0_0_30px_rgba(234,179,8,0.8)] z-50 animate-pulse rounded-full"
+          )}
+        >
+          {/* Base Avatar */}
+          <img src={avatarUrl} alt="avatar" className="absolute inset-1 w-[calc(100%-8px)] h-[calc(100%-8px)] object-cover rounded-full" />
+          {/* Overlay Frame */}
+          <img src={frameUrl} alt="frame" className="absolute inset-0 w-full h-full object-contain pointer-events-none drop-shadow-md" />
+          
+      {roomStatus === 'waiting' && onKick && !player.isHost && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onKick(player.id); }}
+          className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white w-6 h-6 rounded-full font-bold shadow-lg border border-white z-50 flex items-center justify-center text-xs transition-colors"
+          title="踢出玩家"
+        >
+          ×
+        </button>
+      )}
         </div>
         
         {/* Name Plate (Bottom of Avatar) */}
@@ -162,15 +174,6 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
           <div className="absolute -top-2 -left-2 bg-blue-600 text-white p-1.5 rounded-full shadow-lg border border-white/20 z-20">
             <ShieldCheck className="w-4 h-4" />
           </div>
-        )}
-
-        {onKick && !player.isHost && (
-          <button 
-            onClick={() => onKick(player.id)}
-            className="absolute -top-2 -right-2 bg-red-600 text-white p-1.5 rounded-full shadow-lg border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity z-30"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
         )}
 
         {player.ready && roomStatus === 'waiting' && (
@@ -796,7 +799,7 @@ export default function App() {
       </div>
 
       {/* Anti-cheat Banner */}
-      {room?.hasDuplicateIp && (
+      {false && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white px-6 py-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] border border-red-400 font-black flex items-center gap-2 animate-pulse">
           <ShieldCheck className="w-5 h-5" />
           防伙牌预警：检测到同 IP 玩家！
@@ -804,7 +807,7 @@ export default function App() {
       )}
 
       {/* Spectators */}
-      {room?.spectators && room.spectators.length > 0 && (
+      {false && (
         <div className="absolute top-1/2 right-0 -translate-y-1/2 z-40 bg-black/40 backdrop-blur-md rounded-l-2xl border-y border-l border-white/10 p-2 flex flex-col items-center gap-2 pointer-events-auto">
           <div className="text-[10px] font-bold text-white/70 whitespace-nowrap mb-1 flex items-center gap-1">
             <Users className="w-3 h-3" />
@@ -846,6 +849,15 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {room && currentPlayer?.isHost && room.players.length >= 2 && room.status === 'waiting' && (
+        <button
+          onClick={() => socket.emit('forceStart', { roomId: room.id, userId: user?.id })}
+          className="absolute top-20 right-6 px-4 py-2 bg-gradient-to-r from-red-600 to-red-800 text-white font-bold rounded-lg shadow-lg border border-red-400 hover:brightness-110 active:scale-95 transition-all z-20"
+        >
+          强制开始游戏
+        </button>
+      )}
 
       {/* Game Stage */}
       <div className="relative w-full h-screen max-w-7xl mx-auto">
@@ -1075,14 +1087,14 @@ export default function App() {
                     </div>
                   )}
                   
-                  {currentPlayer?.isHost && room.players.filter(p => p.ready).length >= 2 && (
-                    <button
-                      onClick={() => { playSound('click'); socket.emit('forceStart', { roomId: room.id }); }}
-                      className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg"
-                    >
-                      强制开局
-                    </button>
-                  )}
+                  {currentPlayer?.isHost && room.players.length >= 2 && (
+                      <button
+                        onClick={() => { playSound('click'); socket.emit('forceStart', { roomId: room.id, userId: user?.id }); }}
+                        className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg"
+                      >
+                        强制开始
+                      </button>
+                    )}
                   
                 </div>
               </motion.div>
