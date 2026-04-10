@@ -5,6 +5,8 @@ import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, Shield
 import { Card as CardComp } from './components/Card';
 import { Room, Player, Card } from './types';
 import { calculateBull, getBullName } from './lib/gameLogic';
+import confetti from 'canvas-confetti';
+import html2canvas from 'html2canvas';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -442,6 +444,28 @@ export default function App() {
   const [scoreChanges, setScoreChanges] = useState<Record<string, number>>({});
   const [showCards, setShowCards] = useState(false);
   const [betAnimations, setBetAnimations] = useState<{ id: string, from: string, amount: number }[]>([]);
+  const [isCapturing, setIsCapturing] = useState(false);
+  
+  const handleCaptureAndShare = async () => {
+    const el = document.getElementById('summary-board');
+    if (!el) return;
+    setIsCapturing(true);
+    try {
+      const canvas = await html2canvas(el, { backgroundColor: '#0f172a' });
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `至尊斗牛-战报-${new Date().getTime()}.jpg`;
+      a.click();
+      alert('战报已生成，发送给房主即可结账！');
+    } catch (e) {
+      console.error(e);
+      alert('生成战报失败');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
 
   const playSound = (type: 'click' | 'deal' | 'win' | 'lose' | 'bid' | 'bet' | 'reveal' | 'chips') => {
     const sounds: Record<string, string> = {
@@ -497,6 +521,19 @@ export default function App() {
         }
       }
       setRoom(updatedRoom);
+
+      // 当游戏进入结算且我是赢家时，触发满屏金币红包彩带
+      if (updatedRoom.status === 'finished' && room?.status !== 'finished') {
+        const me = updatedRoom.players.find(p => p.id === user?.id);
+        if (me && me.lastWin > 0) {
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#FFD700', '#FF0000', '#FFA500'] // 发财金和鲜红
+          });
+        }
+      }
     });
 
     socket.on('kicked', () => {
@@ -979,6 +1016,7 @@ export default function App() {
             {room?.status === 'game_over' && (
               <motion.div 
                 key="game_over"
+                id="summary-board"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-slate-900 border-4 border-yellow-500 p-10 rounded-[3rem] shadow-[0_0_100px_rgba(234,179,8,0.4)] text-center max-w-3xl w-full z-[60] relative overflow-hidden"
@@ -1066,10 +1104,11 @@ export default function App() {
                     返回大厅
                   </button>
                   <button
-                    onClick={() => alert('战报已生成并保存至相册')}
-                    className="bg-yellow-600 hover:bg-yellow-500 text-black py-5 rounded-2xl font-black text-xl transition-all active:scale-95 shadow-xl shadow-yellow-600/20"
+                    onClick={handleCaptureAndShare}
+                    disabled={isCapturing}
+                    className="bg-yellow-600 hover:bg-yellow-500 text-black py-5 rounded-2xl font-black text-xl transition-all active:scale-95 shadow-xl shadow-yellow-600/20 disabled:opacity-50"
                   >
-                    导出战报
+                    {isCapturing ? '生成中...' : '导出战报'}
                   </button>
                 </div>
               </motion.div>
