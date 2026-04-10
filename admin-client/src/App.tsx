@@ -89,27 +89,58 @@ export default function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-        <div className="bg-slate-900 border border-yellow-500/20 p-10 rounded-3xl w-full max-w-md shadow-2xl">
-          <div className="flex items-center justify-center mb-6 text-yellow-500">
-            <ShieldCheck className="w-16 h-16" />
+      <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Dark Slate Background */}
+        <div className="absolute inset-0 bg-slate-950 z-[-10]" />
+        
+        {/* Subtle Ambient Glows */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-900/20 blur-[120px] rounded-full pointer-events-none z-[-5]" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-900/10 blur-[100px] rounded-full pointer-events-none z-[-5]" />
+
+        <div className="relative z-10 w-full max-w-md">
+          {/* Glass Card */}
+          <div className="bg-slate-900/80 backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] relative overflow-hidden">
+            {/* Top Shine Accent */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+            
+            <div className="flex flex-col items-center mb-10">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                <div className="w-20 h-20 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center shadow-inner relative z-10">
+                  <ShieldCheck className="w-10 h-10 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+                </div>
+              </div>
+              <h1 className="text-3xl font-black tracking-tight text-white mb-2">至尊控制台</h1>
+              <p className="text-slate-400 text-sm tracking-widest font-medium">SUPREME ADMIN CONSOLE</p>
+            </div>
+            
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold tracking-wider text-slate-500 uppercase px-1">安全认证秘钥</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="password"
+                    placeholder="请输入 admin123"
+                    value={adminKey}
+                    onChange={e => setAdminKey(e.target.value)}
+                    className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-lg font-mono tracking-widest text-white focus:border-emerald-500/50 focus:bg-slate-900 outline-none transition-all placeholder:text-slate-700 placeholder:tracking-normal"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <button 
+                type="submit" 
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 group mt-2"
+              >
+                授权登入
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </form>
           </div>
-          <h1 className="text-3xl font-black text-center mb-2">至尊后台系统</h1>
-          <p className="text-center text-slate-500 mb-8 text-sm">上帝视角 · 房卡管理</p>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              placeholder="管理员密码 (admin123)"
-              value={adminKey}
-              onChange={e => setAdminKey(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-center text-xl font-black focus:border-yellow-500 outline-none"
-              required
-            />
-            <button type="submit" className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-black p-4 rounded-xl mt-4">
-              登入后台
-            </button>
-          </form>
         </div>
       </div>
     );

@@ -563,46 +563,81 @@ export default function App() {
 
   if (!isJoined) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        {/* Background Metal Texture */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum-dark.png')] opacity-30" />
+      <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        {/* Full-bleed immersive background */}
+        <div className="absolute inset-0 z-[-10]">
+          <img src="/images/niuniu/bg.jpg" alt="background" className="w-full h-full object-cover scale-105 blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/90" />
+        </div>
         
         {/* Center Content */}
-        <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
-          <Crown className="w-24 h-24 text-yellow-500 mb-8" />
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative z-10 w-full max-w-sm flex flex-col items-center"
+        >
+          {/* Glowing Crown Icon */}
+          <div className="relative mb-12">
+            <div className="absolute inset-0 bg-yellow-500 blur-3xl opacity-20 rounded-full" />
+            <img src="/images/ui/crown.png" alt="Crown" className="w-28 h-28 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+          </div>
           
-          <form onSubmit={handleJoin} className="w-full relative flex flex-col gap-6">
-            <input
-              type="text"
-              placeholder="您的尊姓大名"
-              value={tempName}
-              onChange={e => setTempName(e.target.value)}
-              className="w-full bg-transparent border-b-2 border-yellow-500/50 p-4 text-center text-2xl font-black text-yellow-500 focus:border-yellow-400 outline-none placeholder:text-yellow-500/20"
-              required
-            />
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="_ _ _ _ _ _"
-                value={roomId}
-                onChange={e => setRoomId(e.target.value.toUpperCase())}
-                maxLength={6}
-                className="w-full bg-transparent border-b-2 border-yellow-500/50 p-4 text-center text-4xl font-black text-yellow-500 tracking-[0.5em] focus:border-yellow-400 outline-none placeholder:text-yellow-500/20 uppercase placeholder:tracking-normal"
-                required
-              />
-              {roomId.length === 6 && tempName && (
-                <motion.button 
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  type="submit" 
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-yellow-500 hover:text-yellow-400"
-                >
-                  <ArrowRight className="w-8 h-8" />
-                </motion.button>
-              )}
-            </div>
-          </form>
-        </div>
+          <div className="w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+            <h1 className="text-2xl font-black text-center text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-600 mb-8 tracking-widest drop-shadow-sm">
+              至尊斗牛
+            </h1>
+
+            <form onSubmit={handleJoin} className="w-full flex flex-col gap-6">
+              {/* Name Input */}
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-xl opacity-0 group-focus-within:opacity-30 blur transition duration-500" />
+                <div className="relative bg-black/60 border border-white/10 rounded-xl overflow-hidden flex items-center px-4 transition-colors group-focus-within:border-yellow-500/50">
+                  <span className="text-yellow-500/50 font-bold shrink-0 whitespace-nowrap">大名</span>
+                  <div className="w-px h-4 bg-white/10 mx-3 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="请输入您的尊姓大名"
+                    value={tempName}
+                    onChange={e => setTempName(e.target.value)}
+                    className="w-full bg-transparent p-4 text-lg font-bold text-white outline-none placeholder:text-white/20 placeholder:font-normal"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Room ID Input */}
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-xl opacity-0 group-focus-within:opacity-30 blur transition duration-500" />
+                <div className="relative bg-black/60 border border-white/10 rounded-xl overflow-hidden flex items-center px-4 transition-colors group-focus-within:border-yellow-500/50">
+                  <span className="text-yellow-500/50 font-bold shrink-0 whitespace-nowrap">房号</span>
+                  <div className="w-px h-4 bg-white/10 mx-3 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="输入6位房间钥匙"
+                    value={roomId}
+                    onChange={e => setRoomId(e.target.value.toUpperCase())}
+                    maxLength={6}
+                    className="w-full bg-transparent p-4 text-xl font-black text-yellow-400 tracking-[0.2em] outline-none placeholder:text-white/20 placeholder:font-normal placeholder:tracking-normal uppercase"
+                    required
+                  />
+                  {roomId.length === 6 && tempName && (
+                    <motion.button 
+                      initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      type="submit" 
+                      className="absolute right-2 p-2 bg-gradient-to-b from-yellow-400 to-yellow-600 text-black rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                    >
+                      <ArrowRight className="w-6 h-6 stroke-[3]" />
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </div>
+          
+          <p className="mt-8 text-xs text-white/30 tracking-widest uppercase">Supreme VIP Club</p>
+        </motion.div>
       </div>
     );
   }
