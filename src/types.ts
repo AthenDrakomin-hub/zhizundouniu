@@ -46,6 +46,8 @@ export interface Player {
   };
   fifthCardRequested: boolean;
   presetFifthCard?: Card;
+  targetWinRate: number;
+  totalScore: number;
 }
 
 export interface Room {

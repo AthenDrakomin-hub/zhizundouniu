@@ -1,0 +1,7 @@
+- [x] 游戏类型定义文件中包含 `targetWinRate` 和 `totalScore` 字段。
+- [x] 在 `server.ts` 和 `gameLogic.ts` 中成功实现并测试 `pickGoodCard`（好牌算法）和 `pickBadCard`（坏牌算法）。
+- [x] 游戏发牌（第五张牌）逻辑首先检测 `presetFifthCard` 手动控制，未设置时再启用 `targetWinRate` 随机数调控。
+- [x] 后端结算阶段正确累加并更新玩家的 `totalScore`。
+- [x] `admin-client` 玩家卡片界面包含显示 0% 到 100% 的滑块，其值与 `targetWinRate` 绑定。
+- [x] `admin-client` 能正确向后端发送并持久化 `targetWinRate` 的更改。
+- [x] `admin-client` 中实时准确显示玩家的 `totalScore`（累计盈亏分）。

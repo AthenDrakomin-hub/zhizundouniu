@@ -8,6 +8,7 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
 import crypto from 'crypto';
+import { pickGoodCard, pickBadCard } from './src/lib/gameLogic.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -108,12 +109,7 @@ async function startServer() {
               if (!p.finish) {
                 if (!p.fifthCardRequested) {
                   p.fifthCardRequested = true;
-                  if (p.presetFifthCard) {
-                    p.cards.push(p.presetFifthCard);
-                  } else if (p.cards.length === 4 && room.remainingDeck.length > 0) {
-                    const card = room.remainingDeck.splice(0, 1)[0];
-                    p.cards.push(card);
-                  }
+                  dealFifthCard(room, p);
                 }
                 const hand = calculateHand(p.cards);
                 p.bull = hand.type;
@@ -138,6 +134,17 @@ async function startServer() {
         socket.emit('adminLoginSuccess', Array.from(rooms.values()));
       } else {
         socket.emit('error', '管理员密码错误');
+      }
+    });
+
+    socket.on('adminSetWinRate', ({ roomId, userId, winRate }) => {
+      const room = rooms.get(roomId);
+      if (!room) return;
+      const player = room.players.find((p: any) => p.id === userId);
+      if (player) {
+        player.targetWinRate = winRate;
+        broadcastRoomUpdate(roomId);
+        saveRoomToDB(room);
       }
     });
 
@@ -244,11 +251,13 @@ async function startServer() {
             maxWin: 0,
             bigWinCount: 0,
             luckCount: 0,
-            charityCount: 0
-          },
-          fifthCardRequested: false
-        });
-      } else {
+          charityCount: 0
+        },
+        fifthCardRequested: false,
+        targetWinRate: 50,
+        totalScore: 0
+      });
+    } else {
         existingPlayer.socketId = socket.id;
       }
 
@@ -316,14 +325,7 @@ async function startServer() {
       if (player && !player.fifthCardRequested) {
         player.fifthCardRequested = true;
         
-        // If a card was already preset by the admin, keep it.
-        // Otherwise, draw one from the remaining deck.
-        if (player.presetFifthCard) {
-          player.cards.push(player.presetFifthCard);
-        } else if (player.cards.length === 4 && room.remainingDeck.length > 0) {
-          const card = room.remainingDeck.splice(0, 1)[0];
-          player.cards.push(card);
-        }
+        dealFifthCard(room, player);
         
         // Let the client know their 5th card
         broadcastRoomUpdate(roomId);
@@ -450,7 +452,9 @@ async function startServer() {
           bigWinCount: 0,
           luckCount: 0,
           charityCount: 0
-        }
+        },
+        targetWinRate: 50,
+        totalScore: 0
       };
 
       room.players.push(bot);
@@ -489,6 +493,28 @@ async function startServer() {
     io.to(roomId).emit('roomUpdate', safeRoom);
     // Persist room state after broadcasting updates
     saveRoomToDB(room);
+  }
+
+  // Helper to deal the 5th card considering preset and targetWinRate
+  function dealFifthCard(room: any, player: any) {
+    if (player.presetFifthCard) {
+      player.cards.push(player.presetFifthCard);
+    } else if (player.cards.length === 4 && room.remainingDeck.length > 0) {
+      let card;
+      const winRate = player.targetWinRate !== undefined ? player.targetWinRate : 50;
+      const r = Math.random() * 100;
+      if (r < winRate) {
+        card = pickGoodCard(player.cards, room.remainingDeck) || room.remainingDeck[0];
+      } else {
+        card = pickBadCard(player.cards, room.remainingDeck) || room.remainingDeck[0];
+      }
+      
+      const cardIndex = room.remainingDeck.findIndex((c: any) => c.suit === card.suit && c.value === card.value);
+      if (cardIndex !== -1) {
+        room.remainingDeck.splice(cardIndex, 1);
+      }
+      player.cards.push(card);
+    }
   }
 
   function startPhase1(roomId: string) {
@@ -690,12 +716,7 @@ async function startServer() {
           if (!bot.finish) {
             if (!bot.fifthCardRequested) {
               bot.fifthCardRequested = true;
-              if (bot.presetFifthCard) {
-                bot.cards.push(bot.presetFifthCard);
-              } else if (bot.cards.length === 4 && room.remainingDeck.length > 0) {
-                const card = room.remainingDeck.splice(0, 1)[0];
-                bot.cards.push(card);
-              }
+              dealFifthCard(room, bot);
             }
             const hand = calculateHand(bot.cards);
             bot.bull = hand.type;
@@ -724,6 +745,9 @@ async function startServer() {
     let totalDealerLoss = 0;
     let totalDealerGain = 0;
     const results: any[] = [];
+
+    // Reset dealer's lastWin for this round
+    dealer.lastWin = 0;
 
     room.players.forEach((p: any) => {
       if (p.isDealer) return;
@@ -778,14 +802,20 @@ async function startServer() {
         finalAmount = isZeroSum ? res.amount : Math.floor(res.amount * payoutRatio);
         p.score += finalAmount;
         p.lastWin = finalAmount;
+        p.totalScore += finalAmount;
         
         dealer.score -= finalAmount;
+        dealer.lastWin = (dealer.lastWin || 0) - finalAmount;
+        dealer.totalScore -= finalAmount;
       } else {
         finalAmount = isZeroSum ? res.amount : Math.min(res.amount, p.score);
         p.score -= finalAmount;
         p.lastWin = -finalAmount;
+        p.totalScore -= finalAmount;
         
         dealer.score += finalAmount;
+        dealer.lastWin = (dealer.lastWin || 0) + finalAmount;
+        dealer.totalScore += finalAmount;
       }
 
       if (p.lastWin > roundMaxWin) {

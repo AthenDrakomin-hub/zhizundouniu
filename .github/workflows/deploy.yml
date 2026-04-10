@@ -2,7 +2,7 @@ name: 至尊斗牛自动部署
 
 on:
   push:
-    branches: [ main ] # 确保这是你推送的分支名
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -14,57 +14,68 @@ jobs:
       - name: 安装 Node.js 20
         uses: actions/setup-node@v3
         with:
-          # 【重要修改】：Vite 6 和 Tailwind 必须要求 Node 20，Node 18 会报错 CustomEvent is not defined
           node-version: '20'
 
       - name: 部署到日本服务器
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SERVER_HOST }}     # 你的 IP: 45.32.248.214
-          username: ${{ secrets.SERVER_USER }} # 通常是 root
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 1. 确保服务器环境有正确的 Node.js v20
+            # 1. 环境强制检查
             if [[ $(node -v) != v20* ]]; then
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
 
-            # 2. 进入项目目录（适配您服务器上的真实目录 /var/www/zhizundouniu）
+            # 2. 目录与代码同步
             DEPLOY_DIR="/var/www/zhizundouniu"
+            sudo mkdir -p $DEPLOY_DIR
+            sudo chown -R $USER:$USER $DEPLOY_DIR
+            
             if [ ! -d "$DEPLOY_DIR/.git" ]; then
-              sudo mkdir -p $DEPLOY_DIR
-              sudo chown -R $USER:$USER $DEPLOY_DIR
               git clone https://github.com/AthenDrakomin-hub/zhizundouniu.git $DEPLOY_DIR
             fi
+            
             cd $DEPLOY_DIR
-            # 使用 reset --hard 和 fetch 来防止本地修改导致 git pull 冲突
             git fetch origin main
             git reset --hard origin/main
 
-            # 3. 安装依赖并构建
-            # 【重要保留】：保留了解决 npm Tailwind Bug 的清除指令和 --legacy-peer-deps
-            # 【重要新增】：强制 sqlite3 在本地服务器根据当前 GLIBC 重新编译，避免跨环境绑定库错误
-            rm -rf node_modules package-lock.json @tailwindcss
-            npm install --legacy-peer-deps
-            npm rebuild sqlite3 --build-from-source
+            # 3. 依赖安装与【关键重编】
+            # 清理旧依赖，确保环境纯净
+            rm -rf node_modules package-lock.json
             
-            # 【重要新增】：编译服务端 TypeScript 为纯 JavaScript (dist-server/server.js)，提升高并发稳定性
+            # 安装依赖（使用 --legacy-peer-deps 解决组件冲突）
+            npm install --legacy-peer-deps
+            
+            # 【核心修复】：在服务器本地重新编译 sqlite3，彻底解决 GLIBC 版本不匹配导致的 502
+            # 增加 --unsafe-perm 防止权限报错
+            npm rebuild sqlite3 --build-from-source --unsafe-perm
+            
+            # 后端编译：将 server.ts 编译为 dist-server/server.js
             npm run build:server
             
-            cd admin-client && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && cd ..
-            
+            # 管理端构建
+            cd admin-client
+            rm -rf node_modules package-lock.json
+            npm install --legacy-peer-deps
             npm run build
-            cd admin-client && npm run build && cd ..
+            cd ..
             
-            # 4. 确保安装了 PM2
+            # 游戏前端构建
+            npm run build
+            
+            # 4. 守护进程安装
             sudo npm install pm2 -g
 
-            # 5. 重启项目 (使用 --update-env 刷新环境变量)
-            # 【重要修改】：使用原生的 Node 运行预编译好的 dist-server/server.js，彻底告别 tsx
+            # 5. 【核心启动优化】：使用原生 Node 运行编译后的 js，告别 tsx 报错
+            # 先停止所有，确保端口 3000 被释放
             pm2 delete all || true
+            
+            # 使用原生 node 运行编译产物，这是生产环境最稳健的方式
             pm2 start dist-server/server.js --name "zhizundouniu" --update-env
             pm2 save
             
-            # 6. 重启 Nginx 确保通道顺畅
+            # 6. 通道刷新
             sudo systemctl restart nginx

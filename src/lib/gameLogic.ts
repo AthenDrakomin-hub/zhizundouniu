@@ -84,3 +84,37 @@ export function getWinningCards(current4Cards: Card[], remainingDeck: Card[]): {
   
   return result;
 }
+
+export function pickGoodCard(current4Cards: Card[], remainingDeck: Card[]): Card | null {
+  if (remainingDeck.length === 0) return null;
+  const outcomes = remainingDeck.map(card => {
+    const testCards = [...current4Cards, card];
+    const bullResult = calculateBull(testCards);
+    return { card, bull: bullResult.type };
+  });
+  
+  // Sort by bull descending (best first)
+  outcomes.sort((a, b) => b.bull - a.bull);
+  
+  // Pick randomly from the top 3 best possible cards to add some randomness
+  const poolSize = Math.min(3, outcomes.length);
+  const randomIndex = Math.floor(Math.random() * poolSize);
+  return outcomes[randomIndex].card;
+}
+
+export function pickBadCard(current4Cards: Card[], remainingDeck: Card[]): Card | null {
+  if (remainingDeck.length === 0) return null;
+  const outcomes = remainingDeck.map(card => {
+    const testCards = [...current4Cards, card];
+    const bullResult = calculateBull(testCards);
+    return { card, bull: bullResult.type };
+  });
+  
+  // Sort by bull ascending (worst first)
+  outcomes.sort((a, b) => a.bull - b.bull);
+  
+  // Pick randomly from the top 3 worst possible cards
+  const poolSize = Math.min(3, outcomes.length);
+  const randomIndex = Math.floor(Math.random() * poolSize);
+  return outcomes[randomIndex].card;
+}

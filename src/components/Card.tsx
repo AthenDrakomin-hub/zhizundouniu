@@ -83,9 +83,8 @@ export const Card = ({ card, index, hidden = false, className, isRubbing = false
       onDrag={handleDrag}
       onDragEnd={handleDragEnd}
       style={{ x, y, rotate }}
-      animate={controls}
       initial={{ rotateY: hidden ? 180 : 0, y: -50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      animate={controls || { y: 0, opacity: 1 }}
       transition={{ 
         type: "spring",
         stiffness: 260,

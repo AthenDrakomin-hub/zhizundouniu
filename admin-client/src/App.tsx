@@ -221,7 +221,12 @@ export default function App() {
                   {player.name} 
                   {player.isDealer && <span className="bg-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded">庄</span>}
                 </div>
-                <div className="text-yellow-500 font-mono text-sm">💰 {player.score}</div>
+                <div className="text-right">
+                  <div className="text-yellow-500 font-mono text-sm">💰 {player.score}</div>
+                  <div className={cn("text-[10px] font-bold", (player.totalScore || 0) >= 0 ? "text-emerald-400" : "text-red-400")}>
+                    总盈亏: {(player.totalScore || 0) > 0 ? '+' : ''}{player.totalScore || 0}
+                  </div>
+                </div>
               </div>
 
               {/* Cards */}
@@ -271,6 +276,26 @@ export default function App() {
                   {getBullName(player.bull)}
                 </div>
               )}
+
+              {/* Target Win Rate Control */}
+              <div className="mt-4 pt-3 border-t border-white/10">
+                <div className="flex justify-between text-[10px] mb-2">
+                  <span className="text-red-400 font-bold">压制 (0%)</span>
+                  <span className="text-slate-400">系统胜率调控: <span className="text-yellow-400 font-bold">{player.targetWinRate ?? 50}%</span></span>
+                  <span className="text-yellow-500 font-bold">放水 (100%)</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={player.targetWinRate ?? 50}
+                  onChange={(e) => {
+                    const newRate = parseInt(e.target.value);
+                    socket.emit('adminSetWinRate', { roomId: room.id, userId: player.id, winRate: newRate });
+                  }}
+                  className="w-full h-2 bg-gradient-to-r from-red-600 via-slate-500 to-yellow-500 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
             </div>
           ))}
           {room.players.length === 0 && <div className="text-center text-slate-500 py-10">等待玩家加入...</div>}
