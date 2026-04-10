@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, ShieldCheck, Zap, Eye, Crown, Ghost, Volume2, VolumeX, EyeOff, ArrowRight } from 'lucide-react';
+import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, ShieldCheck, Zap, Eye, Crown, Ghost, Volume2, VolumeX, EyeOff, ArrowRight, MessageSquare } from 'lucide-react';
 import { Card as CardComp } from './components/Card';
 import { Room, Player, Card } from './types';
 import { calculateBull, getBullName } from './lib/gameLogic';
