@@ -34,8 +34,8 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
       className={cn(
         "absolute flex flex-col items-center gap-2",
         position === "bottom" && "bottom-4 left-1/2 -translate-x-1/2",
-        position === "top-left" && "top-8 left-[15%]",
-        position === "top-right" && "top-8 right-[15%]",
+        position === "top-left" && "top-12 left-12",
+        position === "top-right" && "top-12 right-12",
         position === "mid-left" && "top-1/2 left-4 -translate-y-1/2",
         position === "mid-right" && "top-1/2 right-4 -translate-y-1/2"
       )}
@@ -43,24 +43,38 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
       {/* Score Change Animation */}
       {/* Moved to side of avatar */}
 
-      {/* Avatar & Info */}
-      <div className="relative group">
+      {/* Avatar & Info Container */}
+      <div className="relative group flex flex-col items-center">
+        {/* Score/Coins (Top of Avatar) */}
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 bg-[#ffd700] border-2 border-[#b8860b] text-black px-2 sm:px-3 py-0.5 rounded-full flex items-center gap-1 shadow-lg whitespace-nowrap min-w-[60px] justify-center">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-400 rounded-full border border-yellow-600 flex items-center justify-center font-black text-[8px] sm:text-[10px] text-yellow-800 shadow-inner">
+            $
+          </div>
+          <span className="font-black text-xs sm:text-sm drop-shadow-sm">{player.score}</span>
+        </div>
+
+        {/* Avatar */}
         <div className={cn(
-          "w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden",
-          isDealer ? "border-yellow-500 scale-110 ring-4 ring-yellow-500/20" : (player.ready ? "border-blue-500" : "border-slate-700")
+          "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-slate-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden",
+          isDealer ? "border-yellow-500 scale-105 ring-2 ring-yellow-500/20" : (player.ready ? "border-blue-500" : "border-slate-700")
         )}>
           {/* Avatar Background Glow */}
           <div className={cn(
             "absolute inset-0 opacity-20",
             isDealer ? "bg-yellow-500" : (player.ready ? "bg-blue-500" : "bg-transparent")
           )} />
-          <User className="w-10 h-10 sm:w-14 sm:h-14 text-slate-400 relative z-10" />
+          <User className="w-8 h-8 sm:w-12 sm:h-12 text-slate-400 relative z-10" />
+        </div>
+        
+        {/* Name Plate (Bottom of Avatar) */}
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-sm border border-white/10 shadow-lg min-w-[70px] text-center">
+          <div className="text-[10px] sm:text-xs font-bold truncate text-white max-w-[80px]">{player.name}</div>
         </div>
         
         {isDealer && (
           <motion.div 
             initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
-            className="absolute -top-2 -right-2 bg-gradient-to-b from-yellow-400 to-yellow-600 text-black text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-xl border-2 border-black z-20"
+            className="absolute top-0 -right-2 bg-gradient-to-b from-yellow-400 to-red-600 text-white text-[10px] sm:text-xs font-black px-2 py-1 rounded shadow-xl border-2 border-yellow-200 z-40"
           >
             庄
           </motion.div>
@@ -128,27 +142,27 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
       </AnimatePresence>
 
       {/* Action Indicators */}
-      <div className="flex gap-1 h-5">
+      <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-2">
         {player.bidMultiplier > 0 && (
-          <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-md font-bold shadow-sm">
-            抢 x{player.bidMultiplier}
-          </span>
-        )}
-        {player.bidMultiplier === 0 && player.hasBid && (
-          <span className="text-[10px] bg-slate-600 text-white px-1.5 py-0.5 rounded-md font-bold shadow-sm">
-            不抢
-          </span>
+          <div className="bg-gradient-to-r from-red-600 to-orange-500 text-white text-[10px] sm:text-xs font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg border border-orange-300 whitespace-nowrap">
+            抢 {player.bidMultiplier}倍
+          </div>
         )}
         {player.betMultiplier > 0 && (
-          <span className="text-[10px] bg-green-600 text-white px-1.5 py-0.5 rounded-md font-bold shadow-sm">
-            倍 x{player.betMultiplier}
-          </span>
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-500 text-white text-[10px] sm:text-xs font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg border border-indigo-300 whitespace-nowrap">
+            注 {player.betMultiplier}倍
+          </div>
+        )}
+        {roomStatus === 'waiting' && player.ready && (
+          <div className="text-emerald-400 text-xs sm:text-sm font-black whitespace-nowrap drop-shadow-md">
+            已准备
+          </div>
         )}
       </div>
 
       {/* Cards */}
-      <div className="relative h-16 sm:h-24 w-24 sm:w-32 mt-2">
-        <div className="flex justify-center gap-1">
+      <div className="relative mt-2 z-10">
+        <div className="flex justify-center -space-x-4 sm:-space-x-6">
           {(() => {
             const numCards = (roomStatus === 'dealing_4' || roomStatus === 'bidding' || roomStatus === 'betting') ? 4 : 5;
             const displayCards = [];
@@ -178,29 +192,41 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
                   }
                 }}
                 className={cn(
-                  "transition-transform hover:-translate-y-2 w-10 sm:w-14",
-                  isSelf && "cursor-pointer",
-                  isSelf && i === 4 && roomStatus === 'playing' && !player.finish && "ring-4 ring-yellow-500 ring-offset-4 ring-offset-black scale-125 z-30 ml-4 rotate-[-5deg]"
+                  "transition-transform hover:-translate-y-2 w-10 h-14 sm:w-14 sm:h-20 shadow-md",
+                  isSelf && "cursor-pointer w-12 h-16 sm:w-16 sm:h-24", // Make own cards slightly larger
+                  isSelf && i === 4 && roomStatus === 'playing' && !player.finish && "ring-4 ring-yellow-500 ring-offset-4 ring-offset-black/50 scale-125 z-30 ml-4 rotate-[-5deg]"
                 )}
               />
             ));
           })()}
           {player.cards.length === 0 && roomStatus !== 'waiting' && (
-             <div className="flex gap-1">
-               {[0,1,2,3,4].map(i => <CardComp key={i} index={i} hidden className="w-10 sm:w-14" />)}
+             <div className="flex -space-x-4 sm:-space-x-6">
+               {[0,1,2,3,4].map(i => <CardComp key={i} index={i} hidden className="w-10 h-14 sm:w-14 sm:h-20" />)}
              </div>
           )}
         </div>
 
-        {/* Bull Result Overlay */}
+        {/* Bull Result Overlay (Wood Style) */}
         {bullResult && (
           <motion.div 
-            initial={{ scale: 0, rotate: -15 }}
-            animate={{ scale: 1, rotate: -15 }}
-            className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+            initial={{ scale: 0, y: 10 }}
+            animate={{ scale: 1, y: 0 }}
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none"
           >
-            <div className="bg-black/60 backdrop-blur-sm border-2 border-yellow-500/50 text-yellow-400 px-3 py-1 rounded-lg font-black text-sm sm:text-lg shadow-2xl rotate-[-15deg] whitespace-nowrap">
-              {getBullName(bullResult.type)}
+            <div className="relative">
+              {/* Wooden Plaque Background */}
+              <div className="absolute inset-0 bg-[#5c2e0e] rounded-md border-2 border-[#3e1a05] shadow-[0_4px_10px_rgba(0,0,0,0.5)]" />
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] opacity-30 rounded-md" />
+              {/* Nails */}
+              <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
+              <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
+              <div className="absolute bottom-1 left-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
+              <div className="absolute bottom-1 right-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
+              
+              {/* Text */}
+              <div className="relative px-4 py-1 text-yellow-500 font-black text-xs sm:text-sm drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] whitespace-nowrap tracking-wider">
+                {getBullName(bullResult.type)}
+              </div>
             </div>
           </motion.div>
         )}
@@ -813,8 +839,10 @@ export default function App() {
                         whileTap={{ scale: 0.9, rotate: m === 0 ? -2 : 2 }}
                         onClick={() => handleBid(m)}
                         className={cn(
-                          "py-4 rounded-2xl font-black transition-all text-lg shadow-lg relative overflow-hidden group",
-                          m === 0 ? "bg-slate-700 text-white" : "bg-gradient-to-br from-yellow-400 to-orange-600 text-black",
+                          "py-2 sm:py-3 rounded-xl font-black text-sm sm:text-lg shadow-[0_4px_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none transition-all border-2 relative overflow-hidden group",
+                          m === 0 
+                            ? "bg-gradient-to-b from-slate-500 to-slate-700 border-slate-400 text-white" 
+                            : "bg-gradient-to-b from-[#ffcc00] to-[#d48800] border-[#ffe44d] text-[#4a1c00]",
                           m === 4 && "col-span-2",
                           isRecommended && "ring-4 ring-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.6)]"
                         )}
@@ -860,10 +888,10 @@ export default function App() {
                         disabled={isDisabled}
                         onClick={() => handleBet(m)}
                         className={cn(
-                          "py-4 rounded-2xl font-black transition-all text-lg shadow-lg relative overflow-hidden group",
+                          "py-2 sm:py-3 rounded-xl font-black text-sm sm:text-lg shadow-[0_4px_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none transition-all border-2 relative overflow-hidden group",
                           isDisabled 
-                            ? "bg-slate-800 text-slate-600 cursor-not-allowed opacity-50" 
-                            : "bg-gradient-to-br from-emerald-400 to-teal-600 text-black hover:from-emerald-300 hover:to-teal-500"
+                            ? "bg-slate-800 text-slate-600 cursor-not-allowed opacity-50 border-slate-700" 
+                            : "bg-gradient-to-b from-[#00bfff] to-[#0066cc] border-[#4dd2ff] text-white"
                         )}
                       >
                         {!isDisabled && (
@@ -878,7 +906,7 @@ export default function App() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleBet(currentPlayer?.maxAllowedBet || 1)}
-                      className="col-span-2 py-4 rounded-2xl font-black bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg transition-all flex items-center justify-center gap-2 relative overflow-hidden group"
+                      className="col-span-2 py-2 sm:py-3 rounded-xl font-black text-sm sm:text-lg shadow-[0_4px_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none transition-all border-2 bg-gradient-to-b from-orange-500 to-red-600 border-orange-400 text-white flex items-center justify-center gap-2 relative overflow-hidden group"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
                       <Zap className="w-5 h-5 fill-current" />
@@ -1050,17 +1078,31 @@ export default function App() {
         </div>
       </div>
 
-      {/* Timer Overlay */}
+      {/* Timer Overlay (Wood/Alarm Style) */}
       {['bidding', 'betting', 'playing'].includes(room?.status || '') && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50">
-          <div className="bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border-2 border-yellow-500/50 flex items-center gap-3">
-            <div className="text-yellow-500 font-black text-xl">
-              {Math.max(0, Math.ceil(room!.config.timeoutSeconds - (Date.now() - room!.phaseStartTime) / 1000))}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none flex flex-col items-center">
+          {/* Alarm Clock Style Timer */}
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+            {/* Ears */}
+            <div className="absolute top-0 left-1 w-4 h-4 sm:w-6 sm:h-6 bg-yellow-600 rounded-full border-2 border-yellow-800" />
+            <div className="absolute top-0 right-1 w-4 h-4 sm:w-6 sm:h-6 bg-yellow-600 rounded-full border-2 border-yellow-800" />
+            
+            {/* Main Body */}
+            <div className="absolute inset-2 bg-gradient-to-b from-yellow-400 to-yellow-600 rounded-full border-4 border-yellow-800 shadow-xl flex items-center justify-center">
+              <div className="absolute inset-1 bg-white rounded-full flex items-center justify-center shadow-inner">
+                <span className="text-2xl sm:text-3xl font-black text-red-600 drop-shadow-sm">
+                  {Math.max(0, Math.ceil(room!.config.timeoutSeconds - (Date.now() - room!.phaseStartTime) / 1000))}
+                </span>
+              </div>
             </div>
-            <div className="w-1 h-6 bg-white/10" />
-            <div className="text-white/60 text-xs font-bold uppercase tracking-widest">
-              {room?.status === 'bidding' ? '抢庄中' : room?.status === 'betting' ? '下注中' : '摊牌中'}
-            </div>
+            
+            {/* Legs */}
+            <div className="absolute bottom-0 left-3 w-2 h-3 bg-yellow-800 rotate-[30deg] rounded-b-sm" />
+            <div className="absolute bottom-0 right-3 w-2 h-3 bg-yellow-800 -rotate-[30deg] rounded-b-sm" />
+          </div>
+          
+          <div className="mt-2 text-white/60 text-xs sm:text-sm font-bold uppercase tracking-widest drop-shadow-md">
+            {room?.status === 'bidding' ? '请抢庄' : room?.status === 'betting' ? '请下注' : '请摊牌'}
           </div>
         </div>
       )}
