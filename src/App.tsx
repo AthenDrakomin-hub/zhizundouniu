@@ -378,6 +378,10 @@ export default function App() {
   // Chips State
   const [flyingChips, setFlyingChips] = useState<{ id: string, fromPos: string, toPos: string }[]>([]);
 
+  // Chat State
+  const [flyingChats, setFlyingChats] = useState<{ id: string, userId: string, message: string }[]>([]);
+  const quickMessages = ["快点吧，我等得花儿都谢了", "你的牌打得也太好了", "不要走，决战到天亮", "交个朋友吧", "这把稳了"];
+
   const getPlayerPositionStr = (playerId: string, currentRoom: Room) => {
     if (playerId === user?.id) return "bottom";
     const otherPlayers = currentRoom.players.filter(p => p.id !== user?.id);
@@ -543,6 +547,15 @@ export default function App() {
       }, 1500);
     });
 
+    socket.on('chatMessage', (data) => {
+      playSound('emote'); // Reuse emote sound
+      const animId = Math.random().toString(36).substr(2, 9);
+      setFlyingChats(prev => [...prev, { id: animId, userId: data.userId, message: data.message }]);
+      setTimeout(() => {
+        setFlyingChats(prev => prev.filter(e => e.id !== animId));
+      }, 3000);
+    });
+
     socket.on('kicked', () => {
       alert('你已被房主移出房间');
       window.location.reload();
@@ -622,6 +635,15 @@ export default function App() {
       emote
     });
     setActiveEmoteMenu(null);
+  };
+
+  const handleSendChat = (msg: string) => {
+    if (!user || !room) return;
+    socket.emit('chatMessage', {
+      roomId: room.id,
+      userId: user.id,
+      message: msg
+    });
   };
 
   if (!isJoined) {
@@ -773,6 +795,58 @@ export default function App() {
         </button>
       </div>
 
+      {/* Anti-cheat Banner */}
+      {room?.hasDuplicateIp && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white px-6 py-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] border border-red-400 font-black flex items-center gap-2 animate-pulse">
+          <ShieldCheck className="w-5 h-5" />
+          防伙牌预警：检测到同 IP 玩家！
+        </div>
+      )}
+
+      {/* Spectators */}
+      {room?.spectators && room.spectators.length > 0 && (
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 z-40 bg-black/40 backdrop-blur-md rounded-l-2xl border-y border-l border-white/10 p-2 flex flex-col items-center gap-2 pointer-events-auto">
+          <div className="text-[10px] font-bold text-white/70 whitespace-nowrap mb-1 flex items-center gap-1">
+            <Users className="w-3 h-3" />
+            旁观群众 ({room.spectators.length})
+          </div>
+          <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">
+            {room.spectators.map(spec => (
+              <div key={spec.id} className="relative group cursor-pointer" onClick={(e) => handleAvatarClick(spec.id, e.currentTarget.getBoundingClientRect())}>
+                <img 
+                  src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${spec.id}&backgroundColor=1e293b`} 
+                  alt="spectator" 
+                  className="w-10 h-10 rounded-xl border border-white/20 hover:border-white transition-colors"
+                />
+                <div className="absolute top-1/2 right-[120%] -translate-y-1/2 bg-black/80 px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity border border-white/20">
+                  {spec.name}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Chat Panel */}
+      <div className="absolute bottom-4 left-4 z-40 pointer-events-auto group">
+        <div className="w-12 h-12 bg-blue-600/40 backdrop-blur-md rounded-full flex items-center justify-center border border-blue-400/50 shadow-lg cursor-pointer hover:bg-blue-600 transition-colors">
+          <Volume2 className="w-6 h-6 text-white" />
+        </div>
+        
+        <div className="absolute bottom-full left-0 mb-4 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 p-3 flex-col gap-2 w-48 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all pointer-events-none group-hover:pointer-events-auto flex origin-bottom-left shadow-2xl">
+          <div className="text-[10px] font-bold text-yellow-500 mb-1">经典快捷语</div>
+          {quickMessages.map((msg, i) => (
+            <button 
+              key={i}
+              onClick={() => handleSendChat(msg)}
+              className="text-left text-xs text-white/90 hover:text-black hover:bg-yellow-400 px-3 py-2 rounded-xl transition-all truncate font-bold"
+            >
+              {msg}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Game Stage */}
       <div className="relative w-full h-screen max-w-7xl mx-auto">
         {/* Other Players Seats */}
@@ -890,6 +964,32 @@ export default function App() {
                 className="fixed -translate-x-1/2 -translate-y-1/2 z-[120] text-6xl pointer-events-none drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
               >
                 {emote.emote}
+              </motion.div>
+            );
+          })}
+
+          {/* Flying Chats */}
+          {flyingChats.map(chat => {
+            const isSpectator = room?.spectators?.some((s: any) => s.id === chat.userId);
+            let pos;
+            if (isSpectator) {
+               pos = { x: "90vw", y: "50vh" };
+            } else {
+               pos = getCoordinatesFromPos(getPlayerPositionStr(chat.userId, room!));
+            }
+            return (
+              <motion.div
+                key={chat.id}
+                initial={{ left: pos.x, top: pos.y, opacity: 0, y: 10, scale: 0.8 }}
+                animate={{ left: pos.x, top: pos.y, opacity: 1, y: -40, scale: 1 }}
+                exit={{ opacity: 0, y: -60, scale: 0.8 }}
+                transition={{ duration: 0.4 }}
+                className="fixed -translate-x-1/2 -translate-y-full z-[130] pointer-events-none"
+              >
+                <div className="bg-white/90 backdrop-blur-sm text-black px-4 py-2 rounded-2xl rounded-bl-none shadow-xl font-bold text-sm whitespace-nowrap border-2 border-black/10 relative drop-shadow-md">
+                  {chat.message}
+                  <div className="absolute -bottom-2 left-0 w-4 h-4 bg-white/90 backdrop-blur-sm rotate-45 transform origin-top-left border-b-2 border-r-2 border-black/10" />
+                </div>
               </motion.div>
             );
           })}

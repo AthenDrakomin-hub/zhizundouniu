@@ -53,7 +53,11 @@ export interface Player {
 export interface Room {
   id: string;
   players: Player[];
-  status: 'waiting' | 'dealing_4' | 'bidding' | 'betting' | 'dealing_5' | 'playing' | 'finished' | 'game_over';
+  spectators?: Player[];
+  hasDuplicateIp?: boolean;
+  status: 'waiting' | 'dealing_4' | 'bidding' | 'betting' | 'dealing_5' | 'playing' | 'finished' | 'game_over' | 'rolling_dice';
+  tiedPlayerIds?: string[];
+  diceRoll?: number;
   dealerId: string | null;
   config: RoomConfig;
   lastWinnerId: string | null;

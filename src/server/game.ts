@@ -139,6 +139,7 @@ export async function setupGameServer(io: Server) {
       const newRoom = {
         id: roomId,
         players: [],
+        spectators: [],
         status: 'waiting', // waiting, dealing_4, bidding, betting, dealing_5, playing, rolling_dice, finished, game_over
         dealerId: null,
         lastWinnerId: null,
@@ -186,28 +187,41 @@ export async function setupGameServer(io: Server) {
           } else {
              // If waiting or finished, just remove them
              room.players.splice(playerIndex, 1);
-             if (room.players.length === 0) {
+             if (room.players.length === 0 && (!room.spectators || room.spectators.length === 0)) {
                rooms.delete(roomId);
              }
           }
           broadcastRoomUpdate(roomId);
           io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
+        } else if (room.spectators) {
+          const specIndex = room.spectators.findIndex((s: any) => s.socketId === socket.id);
+          if (specIndex !== -1) {
+            room.spectators.splice(specIndex, 1);
+            if (room.players.length === 0 && room.spectators.length === 0) {
+              rooms.delete(roomId);
+            }
+            broadcastRoomUpdate(roomId);
+            io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
+          }
         }
       }
     });
 
     socket.on('joinRoom', ({ roomId, user }) => {
       let room = rooms.get(roomId);
+      const ip = socket.handshake.address;
 
       if (room) {
         // 检查是否重名
         const existingPlayerByName = room.players.find((p: any) => p.name === user.name);
+        const existingSpectatorByName = room.spectators && room.spectators.find((p: any) => p.name === user.name);
         
         if (existingPlayerByName) {
           if (existingPlayerByName.isDisconnected) {
             // 允许重连，接管原座位
             existingPlayerByName.isDisconnected = false;
             existingPlayerByName.socketId = socket.id;
+            existingPlayerByName.ip = ip;
             socket.join(roomId);
             socket.emit('reconnectSuccess', existingPlayerByName);
             broadcastRoomUpdate(roomId);
@@ -219,8 +233,37 @@ export async function setupGameServer(io: Server) {
           }
         }
 
+        if (existingSpectatorByName) {
+          if (existingSpectatorByName.isDisconnected) {
+            existingSpectatorByName.isDisconnected = false;
+            existingSpectatorByName.socketId = socket.id;
+            existingSpectatorByName.ip = ip;
+            socket.join(roomId);
+            socket.emit('joinSuccess', existingSpectatorByName);
+            broadcastRoomUpdate(roomId);
+            return;
+          } else {
+            socket.emit('joinError', '该大名已在房间内，不能重名');
+            return;
+          }
+        }
+
+        if (!room.spectators) room.spectators = [];
+
         if (room.players.length >= room.config.maxPlayers) {
-          socket.emit('joinError', '房间已满');
+          socket.join(roomId);
+          const newSpectatorId = user.id || Math.random().toString(36).substr(2, 9);
+          const newSpectator = {
+            ...user,
+            id: newSpectatorId,
+            socketId: socket.id,
+            isSpectator: true,
+            ip: ip,
+            isDisconnected: false
+          };
+          room.spectators.push(newSpectator);
+          socket.emit('joinSuccess', newSpectator);
+          broadcastRoomUpdate(roomId);
           return;
         }
       }
@@ -231,6 +274,7 @@ export async function setupGameServer(io: Server) {
         room = { 
           id: roomId, 
           players: [], 
+          spectators: [],
           status: 'waiting', 
           dealerId: null,
           lastWinnerId: null,
@@ -265,6 +309,7 @@ export async function setupGameServer(io: Server) {
         ...user,
         id: newPlayerId,
         socketId: socket.id,
+        ip: ip,
         ready: false,
         cards: [],
         bull: -1,
@@ -456,6 +501,11 @@ export async function setupGameServer(io: Server) {
       io.to(`admin_${roomId}`).emit('emoteReceived', { fromId, targetId, emote });
     });
 
+    socket.on('chatMessage', ({ roomId, userId, message }) => {
+      io.to(roomId).emit('chatMessage', { userId, message, timestamp: Date.now() });
+      io.to(`admin_${roomId}`).emit('chatMessage', { userId, message, timestamp: Date.now() });
+    });
+
     socket.on('addBot', ({ roomId }) => {
       const room = rooms.get(roomId);
       if (!room || room.players.length >= room.config.maxPlayers) return;
@@ -512,6 +562,15 @@ export async function setupGameServer(io: Server) {
 
     const safeRoom = JSON.parse(JSON.stringify(room));
     safeRoom.remainingDeck = []; 
+    
+    const ipCounts = new Map<string, number>();
+    safeRoom.players.forEach((p: any) => {
+      if (p.ip && !p.isDisconnected && !p.isBot) {
+        ipCounts.set(p.ip, (ipCounts.get(p.ip) || 0) + 1);
+      }
+    });
+    safeRoom.hasDuplicateIp = Array.from(ipCounts.values()).some(count => count > 1);
+
     safeRoom.players.forEach((p: any) => {
       delete p.presetFifthCard;
       if (p.cards && p.cards.length === 5 && !p.fifthCardRequested) {

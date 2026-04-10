@@ -256,6 +256,7 @@ async function setupGameServer(io) {
       const newRoom = {
         id: roomId,
         players: [],
+        spectators: [],
         status: "waiting",
         // waiting, dealing_4, bidding, betting, dealing_5, playing, rolling_dice, finished, game_over
         dealerId: null,
@@ -299,23 +300,36 @@ async function setupGameServer(io) {
             room.players[playerIndex].isDisconnected = true;
           } else {
             room.players.splice(playerIndex, 1);
-            if (room.players.length === 0) {
+            if (room.players.length === 0 && (!room.spectators || room.spectators.length === 0)) {
               rooms.delete(roomId);
             }
           }
           broadcastRoomUpdate(roomId);
           io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
+        } else if (room.spectators) {
+          const specIndex = room.spectators.findIndex((s) => s.socketId === socket.id);
+          if (specIndex !== -1) {
+            room.spectators.splice(specIndex, 1);
+            if (room.players.length === 0 && room.spectators.length === 0) {
+              rooms.delete(roomId);
+            }
+            broadcastRoomUpdate(roomId);
+            io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
+          }
         }
       }
     });
     socket.on("joinRoom", ({ roomId, user }) => {
       let room = rooms.get(roomId);
+      const ip = socket.handshake.address;
       if (room) {
         const existingPlayerByName = room.players.find((p) => p.name === user.name);
+        const existingSpectatorByName = room.spectators && room.spectators.find((p) => p.name === user.name);
         if (existingPlayerByName) {
           if (existingPlayerByName.isDisconnected) {
             existingPlayerByName.isDisconnected = false;
             existingPlayerByName.socketId = socket.id;
+            existingPlayerByName.ip = ip;
             socket.join(roomId);
             socket.emit("reconnectSuccess", existingPlayerByName);
             broadcastRoomUpdate(roomId);
@@ -325,8 +339,35 @@ async function setupGameServer(io) {
             return;
           }
         }
+        if (existingSpectatorByName) {
+          if (existingSpectatorByName.isDisconnected) {
+            existingSpectatorByName.isDisconnected = false;
+            existingSpectatorByName.socketId = socket.id;
+            existingSpectatorByName.ip = ip;
+            socket.join(roomId);
+            socket.emit("joinSuccess", existingSpectatorByName);
+            broadcastRoomUpdate(roomId);
+            return;
+          } else {
+            socket.emit("joinError", "\u8BE5\u5927\u540D\u5DF2\u5728\u623F\u95F4\u5185\uFF0C\u4E0D\u80FD\u91CD\u540D");
+            return;
+          }
+        }
+        if (!room.spectators) room.spectators = [];
         if (room.players.length >= room.config.maxPlayers) {
-          socket.emit("joinError", "\u623F\u95F4\u5DF2\u6EE1");
+          socket.join(roomId);
+          const newSpectatorId = user.id || Math.random().toString(36).substr(2, 9);
+          const newSpectator = {
+            ...user,
+            id: newSpectatorId,
+            socketId: socket.id,
+            isSpectator: true,
+            ip,
+            isDisconnected: false
+          };
+          room.spectators.push(newSpectator);
+          socket.emit("joinSuccess", newSpectator);
+          broadcastRoomUpdate(roomId);
           return;
         }
       }
@@ -335,6 +376,7 @@ async function setupGameServer(io) {
         room = {
           id: roomId,
           players: [],
+          spectators: [],
           status: "waiting",
           dealerId: null,
           lastWinnerId: null,
@@ -366,6 +408,7 @@ async function setupGameServer(io) {
         ...user,
         id: newPlayerId,
         socketId: socket.id,
+        ip,
         ready: false,
         cards: [],
         bull: -1,
@@ -528,6 +571,10 @@ async function setupGameServer(io) {
       io.to(roomId).emit("emoteReceived", { fromId, targetId, emote });
       io.to(`admin_${roomId}`).emit("emoteReceived", { fromId, targetId, emote });
     });
+    socket.on("chatMessage", ({ roomId, userId, message }) => {
+      io.to(roomId).emit("chatMessage", { userId, message, timestamp: Date.now() });
+      io.to(`admin_${roomId}`).emit("chatMessage", { userId, message, timestamp: Date.now() });
+    });
     socket.on("addBot", ({ roomId }) => {
       const room = rooms.get(roomId);
       if (!room || room.players.length >= room.config.maxPlayers) return;
@@ -577,6 +624,13 @@ async function setupGameServer(io) {
     io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
     const safeRoom = JSON.parse(JSON.stringify(room));
     safeRoom.remainingDeck = [];
+    const ipCounts = /* @__PURE__ */ new Map();
+    safeRoom.players.forEach((p) => {
+      if (p.ip && !p.isDisconnected && !p.isBot) {
+        ipCounts.set(p.ip, (ipCounts.get(p.ip) || 0) + 1);
+      }
+    });
+    safeRoom.hasDuplicateIp = Array.from(ipCounts.values()).some((count) => count > 1);
     safeRoom.players.forEach((p) => {
       delete p.presetFifthCard;
       if (p.cards && p.cards.length === 5 && !p.fifthCardRequested) {
