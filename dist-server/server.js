@@ -224,8 +224,20 @@ async function setupGameServer(io) {
       const player = room.players.find((p) => p.id === userId);
       if (player) {
         player.targetWinRate = winRate;
-        broadcastRoomUpdate(roomId);
-        saveRoomToDB(room);
+        io.to("admin").emit("adminState", Array.from(rooms.values()));
+      }
+    });
+    socket.on("adminSetFifthCard", ({ roomId, userId, card }) => {
+      const room = rooms.get(roomId);
+      if (!room) return;
+      const player = room.players.find((p) => p.id === userId);
+      if (player && (room.status === "dealing_5" || room.status === "playing")) {
+        const cardIndex = room.deck.findIndex((c) => c.suit === card.suit && c.value === card.value);
+        if (cardIndex !== -1) {
+          room.deck.splice(cardIndex, 1);
+        }
+        player.presetFifthCard = card;
+        io.to("admin").emit("adminState", Array.from(rooms.values()));
       }
     });
     socket.on("adminCreateRoom", () => {
@@ -235,6 +247,7 @@ async function setupGameServer(io) {
         id: roomId,
         players: [],
         status: "waiting",
+        // waiting, dealing_4, bidding, betting, dealing_5, playing, rolling_dice, finished, game_over
         dealerId: null,
         lastWinnerId: null,
         prevRoundNoBull: false,
@@ -266,6 +279,20 @@ async function setupGameServer(io) {
       if (room) {
         socket.join(`admin_${roomId}`);
         socket.emit("roomUpdate", room);
+      }
+    });
+    socket.on("disconnect", () => {
+      for (const [roomId, room] of rooms.entries()) {
+        const playerIndex = room.players.findIndex((p) => p.id === socket.id);
+        if (playerIndex !== -1) {
+          if (room.status !== "waiting") {
+            room.players[playerIndex].isDisconnected = true;
+          } else {
+            room.players.splice(playerIndex, 1);
+          }
+          io.to(roomId).emit("roomUpdated", room);
+          io.to("admin").emit("adminState", Array.from(rooms.values()));
+        }
       }
     });
     socket.on("joinRoom", ({ roomId, user }) => {
@@ -312,7 +339,7 @@ async function setupGameServer(io) {
           ready: false,
           cards: [],
           bull: -1,
-          score: 1e3,
+          score: 0,
           finish: false,
           bidMultiplier: 0,
           betMultiplier: 0,
@@ -345,7 +372,7 @@ async function setupGameServer(io) {
       if (config.gameMode === "rounds" && room.config.gameMode !== "rounds") {
         room.players.forEach((p) => p.score = 0);
       } else if (config.gameMode === "endless" && room.config.gameMode !== "endless") {
-        room.players.forEach((p) => p.score = 1e3);
+        room.players.forEach((p) => p.score = 0);
       }
       room.config = { ...room.config, ...config };
       broadcastRoomUpdate(roomId);
@@ -404,6 +431,7 @@ async function setupGameServer(io) {
       const player = room.players.find((p) => p.id === userId);
       if (player) player.ready = true;
       if (room.players.length >= 2 && room.players.every((p) => p.ready)) {
+        room.autoReadyTimeout = null;
         startPhase1(roomId);
       } else {
         broadcastRoomUpdate(roomId);
@@ -482,7 +510,7 @@ async function setupGameServer(io) {
         ready: true,
         cards: [],
         bull: -1,
-        score: 1e3,
+        score: 0,
         finish: false,
         bidMultiplier: 0,
         betMultiplier: 0,
@@ -595,29 +623,46 @@ async function setupGameServer(io) {
     } else {
       candidates = room.players.filter((p) => p.bidMultiplier === maxBid);
     }
-    const dealer = candidates[Math.floor(Math.random() * candidates.length)];
-    room.dealerId = dealer.id;
-    dealer.isDealer = true;
-    room.status = "betting";
-    room.phaseStartTime = Date.now();
-    const base = 10;
-    const maxHandMultiplier = 8;
-    const dealerBid = dealer.bidMultiplier || 1;
-    const numIdles = room.players.length - 1;
-    const dealerLimitPerPlayer = Math.floor(dealer.score / numIdles);
-    room.players.forEach((p) => {
-      if (!p.isDealer) {
-        const playerLimit = p.score;
-        const totalLimit = Math.min(dealerLimitPerPlayer, playerLimit);
-        let maxBet = Math.max(1, Math.floor(totalLimit / (base * dealerBid * maxHandMultiplier)));
-        if (room.config.noBullLimit && room.prevRoundNoBull) {
-          maxBet = 1;
+    if (candidates.length > 1) {
+      room.status = "rolling_dice";
+      room.diceRoll = Math.floor(Math.random() * 6) + 1;
+      room.tiedPlayerIds = candidates.map((c) => c.id);
+      const dealerIndex = (room.diceRoll - 1) % candidates.length;
+      const dealer = candidates[dealerIndex];
+      room.dealerId = dealer.id;
+      dealer.isDealer = true;
+      room.phaseStartTime = Date.now();
+      broadcastRoomUpdate(roomId);
+      setTimeout(() => {
+        const r = rooms.get(roomId);
+        if (r && r.status === "rolling_dice") {
+          r.status = "betting";
+          r.phaseStartTime = Date.now();
+          r.players.forEach((p) => {
+            if (!p.isDealer) {
+              p.maxAllowedBet = 4;
+              if (r.config.noBullLimit && r.prevRoundNoBull) p.maxAllowedBet = 1;
+            }
+          });
+          broadcastRoomUpdate(roomId);
+          processBotTurns(roomId);
         }
-        p.maxAllowedBet = maxBet;
-      }
-    });
-    broadcastRoomUpdate(roomId);
-    processBotTurns(roomId);
+      }, 4e3);
+    } else {
+      const dealer = candidates[0];
+      room.dealerId = dealer.id;
+      dealer.isDealer = true;
+      room.status = "betting";
+      room.phaseStartTime = Date.now();
+      room.players.forEach((p) => {
+        if (!p.isDealer) {
+          p.maxAllowedBet = 4;
+          if (room.config.noBullLimit && room.prevRoundNoBull) p.maxAllowedBet = 1;
+        }
+      });
+      broadcastRoomUpdate(roomId);
+      processBotTurns(roomId);
+    }
   }
   function startPhase5(roomId) {
     const room = rooms.get(roomId);
@@ -746,22 +791,24 @@ async function setupGameServer(io) {
         else if (targetHand.type >= 1) handMultiplier = 2;
         else handMultiplier = 1;
       } else if (room.config.multiplierRule === "competitive") {
-        if (targetHand.type >= 13) handMultiplier = 8;
+        if (targetHand.type === 13) handMultiplier = 8;
         else if (targetHand.type >= 11) handMultiplier = 5;
-        else if (targetHand.type >= 10) handMultiplier = 3;
+        else if (targetHand.type === 10) handMultiplier = 3;
         else if (targetHand.type >= 7) handMultiplier = 2;
         else handMultiplier = 1;
       } else {
-        handMultiplier = targetHand.multiplier;
+        if (targetHand.type === 13) handMultiplier = 8;
+        else if (targetHand.type === 12) handMultiplier = 5;
+        else if (targetHand.type === 11) handMultiplier = 4;
+        else if (targetHand.type === 10) handMultiplier = 3;
+        else if (targetHand.type >= 7) handMultiplier = 2;
+        else handMultiplier = 1;
       }
       const amount = base * dealerBid * playerBet * handMultiplier;
       results.push({ playerId: p.id, playerWins, amount });
       if (playerWins) totalDealerLoss += amount;
       else totalDealerGain += amount;
     });
-    const isZeroSum = room.config.gameMode === "rounds";
-    const availableToPay = isZeroSum ? Infinity : dealer.score + totalDealerGain;
-    const payoutRatio = totalDealerLoss > availableToPay ? availableToPay / totalDealerLoss : 1;
     let roundMaxWin = -Infinity;
     let roundWinnerId = null;
     room.players.forEach((p) => {
@@ -769,7 +816,6 @@ async function setupGameServer(io) {
       const res = results.find((r) => r.playerId === p.id);
       let finalAmount = res.amount;
       if (res.playerWins) {
-        finalAmount = isZeroSum ? res.amount : Math.floor(res.amount * payoutRatio);
         p.score += finalAmount;
         p.lastWin = finalAmount;
         p.totalScore += finalAmount;
@@ -777,7 +823,6 @@ async function setupGameServer(io) {
         dealer.lastWin = (dealer.lastWin || 0) - finalAmount;
         dealer.totalScore -= finalAmount;
       } else {
-        finalAmount = isZeroSum ? res.amount : Math.min(res.amount, p.score);
         p.score -= finalAmount;
         p.lastWin = -finalAmount;
         p.totalScore -= finalAmount;
@@ -790,7 +835,7 @@ async function setupGameServer(io) {
         roundWinnerId = p.id;
       }
     });
-    const dealerRoundWin = isZeroSum ? totalDealerGain - totalDealerLoss : totalDealerGain - totalDealerLoss * payoutRatio;
+    const dealerRoundWin = totalDealerGain - totalDealerLoss;
     if (dealerRoundWin > roundMaxWin) {
       roundWinnerId = dealer.id;
     }
@@ -820,6 +865,15 @@ async function setupGameServer(io) {
       const reportData = room.players.map((p) => `${p.id}:${p.score}`).sort().join("|");
       const hash = crypto.createHash("sha256").update(`${room.id}|${room.serialNumber}|${reportData}`).digest("hex").substring(0, 16).toUpperCase();
       room.reportHash = hash;
+    } else {
+      room.autoReadyTimeout = Date.now() + 15e3;
+      setTimeout(() => {
+        const r = rooms.get(roomId);
+        if (r && r.status === "finished" && r.autoReadyTimeout) {
+          r.players.forEach((p) => p.ready = true);
+          startPhase1(roomId);
+        }
+      }, 15e3);
     }
     broadcastRoomUpdate(roomId);
   }

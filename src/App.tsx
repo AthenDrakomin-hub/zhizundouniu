@@ -27,9 +27,10 @@ interface PlayerSeatProps {
   scoreChange?: number;
   showCards?: boolean;
   onAvatarClick?: (id: string, rect: DOMRect) => void;
+  isMarquee?: boolean;
 }
 
-const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId, onKick, scoreChange, showCards, onAvatarClick }: PlayerSeatProps) => {
+const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId, onKick, scoreChange, showCards, onAvatarClick, isMarquee }: PlayerSeatProps) => {
   const isDealer = player.isDealer;
   const hasFinished = player.finish;
   const bullResult = hasFinished || roomStatus === 'finished' ? calculateBull(player.cards) : null;
@@ -47,7 +48,8 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
         position === "top-right" && "top-12 right-12",
         position === "mid-left" && "top-1/2 left-4 -translate-y-1/2",
         position === "mid-right" && "top-1/2 right-4 -translate-y-1/2",
-        isMegaWin && "animate-shake z-[100]"
+        isMegaWin && "animate-shake z-[100]",
+        isMarquee && "z-[110]"
       )}
     >
       {/* Winner Light Effect */}
@@ -89,7 +91,8 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
           className={cn(
           "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-[#1e1e1e] shadow-[0_4px_10px_rgba(0,0,0,0.8)] transition-all relative overflow-hidden cursor-pointer",
           isDealer ? "border-[#D4AF37] scale-105 ring-2 ring-[#D4AF37]/30" : (player.ready ? "border-blue-500" : "border-[#8B7355]"),
-          isMegaWin && "mega-win"
+          isMegaWin && "mega-win",
+          isMarquee && "ring-4 ring-yellow-400 ring-offset-4 ring-offset-black/50 shadow-[0_0_30px_rgba(234,179,8,0.8)] animate-pulse"
         )}>
           {/* Avatar Background Glow */}
           <div className={cn(
@@ -224,7 +227,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
                 className={cn(
                   "transition-transform hover:-translate-y-2 w-10 h-14 sm:w-14 sm:h-20 shadow-md",
                   isSelf && "cursor-pointer w-12 h-16 sm:w-16 sm:h-24", // Make own cards slightly larger
-                  isSelf && i === 4 && roomStatus === 'playing' && !player.finish && "ring-4 ring-yellow-500 ring-offset-4 ring-offset-black/50 scale-125 z-30 ml-4 rotate-[-5deg]"
+                  isSelf && i === 4 && roomStatus === 'playing' && !player.finish && "ring-2 ring-yellow-500 z-30 shadow-[0_0_15px_rgba(234,179,8,0.5)]"
                 )}
               />
             ));
@@ -294,6 +297,36 @@ export default function App() {
   const [showCards, setShowCards] = useState(false);
   const [betAnimations, setBetAnimations] = useState<{ id: string, from: string, amount: number }[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [countdown, setCountdown] = useState(15);
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (room?.status === 'finished') {
+      setCountdown(15);
+      timer = setInterval(() => {
+        setCountdown(c => Math.max(0, c - 1));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [room?.status]);
+
+  const [marqueePlayerId, setMarqueePlayerId] = useState<string | null>(null);
+  useEffect(() => {
+    if (room?.status === 'rolling_dice' && room.tiedPlayerIds && room.tiedPlayerIds.length > 0) {
+      let count = 0;
+      const totalSteps = 20 + room.tiedPlayerIds.indexOf(room.dealerId);
+      const interval = setInterval(() => {
+        setMarqueePlayerId(room.tiedPlayerIds[count % room.tiedPlayerIds.length]);
+        count++;
+        if (count > totalSteps) {
+          clearInterval(interval);
+          setMarqueePlayerId(room.dealerId);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      setMarqueePlayerId(null);
+    }
+  }, [room?.status, room?.tiedPlayerIds, room?.dealerId]);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   
   // Emotes State
@@ -730,6 +763,7 @@ export default function App() {
             onKick={currentPlayer?.isHost ? (id) => socket.emit('kickPlayer', { roomId: room?.id, targetId: id }) : undefined}
             scoreChange={scoreChanges[player.id]}
             onAvatarClick={handleAvatarClick}
+            isMarquee={marqueePlayerId === player.id}
           />
         ))}
 
@@ -744,11 +778,27 @@ export default function App() {
             scoreChange={scoreChanges[currentPlayer.id]}
             showCards={showCards}
             onAvatarClick={handleAvatarClick}
+            isMarquee={marqueePlayerId === currentPlayer.id}
           />
         )}
 
         {/* Central Action Area */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-full max-w-md">
+          {room?.status === 'rolling_dice' && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
+              <motion.div 
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 360 }}
+                className="bg-[#FDFBF7] p-8 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] border-4 border-[#E8DCC4]"
+              >
+                <div className="text-6xl font-black text-[#8B0000] flex flex-col items-center">
+                  🎲 {room?.diceRoll || 1}
+                  <span className="text-sm text-[#D4AF37] mt-3 tracking-widest font-bold">掷点定庄</span>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
           {/* Bet Animations (Chips) */}
           <AnimatePresence>
             {betAnimations.map(anim => (
@@ -1072,9 +1122,9 @@ export default function App() {
                 
                 <button
                   onClick={() => socket.emit('ready', { roomId: room.id, userId: user?.id })}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95"
+                  className="w-full bg-gradient-to-b from-[#F2C94C] to-[#D4AF37] hover:brightness-110 text-[#4A0000] py-5 rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 border-2 border-[#FFF5D1]"
                 >
-                  继续对战
+                  {currentPlayer?.ready ? '等待他人...' : `继续对战 (${countdown}s)`}
                 </button>
               </motion.div>
             )}

@@ -129,7 +129,7 @@ export async function setupGameServer(io: Server) {
       const newRoom = {
         id: roomId,
         players: [],
-        status: 'waiting',
+        status: 'waiting', // waiting, dealing_4, bidding, betting, dealing_5, playing, rolling_dice, finished, game_over
         dealerId: null,
         lastWinnerId: null,
         prevRoundNoBull: false,
@@ -336,6 +336,7 @@ export async function setupGameServer(io: Server) {
       if (player) player.ready = true;
 
       if (room.players.length >= 2 && room.players.every((p: any) => p.ready)) {
+        room.autoReadyTimeout = null; // Clear auto-ready flag if any
         startPhase1(roomId);
       } else {
         broadcastRoomUpdate(roomId);
@@ -561,35 +562,49 @@ export async function setupGameServer(io: Server) {
       candidates = room.players.filter((p: any) => p.bidMultiplier === maxBid);
     }
     
-    const dealer = candidates[Math.floor(Math.random() * candidates.length)];
-    
-    room.dealerId = dealer.id;
-    dealer.isDealer = true;
-    room.status = 'betting';
-    room.phaseStartTime = Date.now();
-    
-    const base = 10;
-    const maxHandMultiplier = 8; 
-    const dealerBid = dealer.bidMultiplier || 1;
-    const numIdles = room.players.length - 1;
-    const dealerLimitPerPlayer = Math.floor(dealer.score / numIdles);
-
-    room.players.forEach((p: any) => {
-      if (!p.isDealer) {
-        const playerLimit = p.score;
-        const totalLimit = Math.min(dealerLimitPerPlayer, playerLimit);
-        let maxBet = Math.max(1, Math.floor(totalLimit / (base * dealerBid * maxHandMultiplier)));
-        
-        if (room.config.noBullLimit && room.prevRoundNoBull) {
-          maxBet = 1;
+    if (candidates.length > 1) {
+      room.status = 'rolling_dice';
+      room.diceRoll = Math.floor(Math.random() * 6) + 1;
+      room.tiedPlayerIds = candidates.map((c: any) => c.id);
+      
+      const dealerIndex = (room.diceRoll - 1) % candidates.length;
+      const dealer = candidates[dealerIndex];
+      room.dealerId = dealer.id;
+      dealer.isDealer = true;
+      room.phaseStartTime = Date.now();
+      
+      broadcastRoomUpdate(roomId);
+      
+      setTimeout(() => {
+        const r = rooms.get(roomId);
+        if (r && r.status === 'rolling_dice') {
+          r.status = 'betting';
+          r.phaseStartTime = Date.now();
+          r.players.forEach((p: any) => {
+            if (!p.isDealer) {
+              p.maxAllowedBet = 4;
+              if (r.config.noBullLimit && r.prevRoundNoBull) p.maxAllowedBet = 1;
+            }
+          });
+          broadcastRoomUpdate(roomId);
+          processBotTurns(roomId);
         }
-        
-        p.maxAllowedBet = maxBet;
-      }
-    });
-    
-    broadcastRoomUpdate(roomId);
-    processBotTurns(roomId);
+      }, 4000); // Wait 4 seconds for dice roll and marquee animation
+    } else {
+      const dealer = candidates[0];
+      room.dealerId = dealer.id;
+      dealer.isDealer = true;
+      room.status = 'betting';
+      room.phaseStartTime = Date.now();
+      room.players.forEach((p: any) => {
+        if (!p.isDealer) {
+          p.maxAllowedBet = 4;
+          if (room.config.noBullLimit && room.prevRoundNoBull) p.maxAllowedBet = 1;
+        }
+      });
+      broadcastRoomUpdate(roomId);
+      processBotTurns(roomId);
+    }
   }
 
   function startPhase5(roomId: string) {
@@ -738,13 +753,18 @@ export async function setupGameServer(io: Server) {
         else if (targetHand.type >= 1) handMultiplier = 2;
         else handMultiplier = 1;
       } else if (room.config.multiplierRule === 'competitive') {
-        if (targetHand.type >= 13) handMultiplier = 8; 
-        else if (targetHand.type >= 11) handMultiplier = 5; 
-        else if (targetHand.type >= 10) handMultiplier = 3; 
-        else if (targetHand.type >= 7) handMultiplier = 2; 
+        if (targetHand.type === 13) handMultiplier = 8;
+        else if (targetHand.type >= 11) handMultiplier = 5;
+        else if (targetHand.type === 10) handMultiplier = 3;
+        else if (targetHand.type >= 7) handMultiplier = 2;
         else handMultiplier = 1;
       } else {
-        handMultiplier = targetHand.multiplier;
+        if (targetHand.type === 13) handMultiplier = 8;
+        else if (targetHand.type === 12) handMultiplier = 5;
+        else if (targetHand.type === 11) handMultiplier = 4;
+        else if (targetHand.type === 10) handMultiplier = 3;
+        else if (targetHand.type >= 7) handMultiplier = 2;
+        else handMultiplier = 1;
       }
 
       const amount = base * dealerBid * playerBet * handMultiplier;
@@ -753,10 +773,6 @@ export async function setupGameServer(io: Server) {
       if (playerWins) totalDealerLoss += amount;
       else totalDealerGain += amount;
     });
-
-    const isZeroSum = room.config.gameMode === 'rounds';
-    const availableToPay = isZeroSum ? Infinity : (dealer.score + totalDealerGain);
-    const payoutRatio = totalDealerLoss > availableToPay ? availableToPay / totalDealerLoss : 1;
 
     let roundMaxWin = -Infinity;
     let roundWinnerId = null;
@@ -767,20 +783,18 @@ export async function setupGameServer(io: Server) {
       let finalAmount = res.amount;
 
       if (res.playerWins) {
-        finalAmount = isZeroSum ? res.amount : Math.floor(res.amount * payoutRatio);
         p.score += finalAmount;
         p.lastWin = finalAmount;
         p.totalScore += finalAmount;
-        
+
         dealer.score -= finalAmount;
         dealer.lastWin = (dealer.lastWin || 0) - finalAmount;
         dealer.totalScore -= finalAmount;
       } else {
-        finalAmount = isZeroSum ? res.amount : Math.min(res.amount, p.score);
         p.score -= finalAmount;
         p.lastWin = -finalAmount;
         p.totalScore -= finalAmount;
-        
+
         dealer.score += finalAmount;
         dealer.lastWin = (dealer.lastWin || 0) + finalAmount;
         dealer.totalScore += finalAmount;
@@ -792,7 +806,7 @@ export async function setupGameServer(io: Server) {
       }
     });
 
-    const dealerRoundWin = isZeroSum ? (totalDealerGain - totalDealerLoss) : (totalDealerGain - (totalDealerLoss * payoutRatio));
+    const dealerRoundWin = totalDealerGain - totalDealerLoss;
     if (dealerRoundWin > roundMaxWin) {
       roundWinnerId = dealer.id;
     }
@@ -825,6 +839,15 @@ export async function setupGameServer(io: Server) {
       const reportData = room.players.map((p: any) => `${p.id}:${p.score}`).sort().join('|');
       const hash = crypto.createHash('sha256').update(`${room.id}|${room.serialNumber}|${reportData}`).digest('hex').substring(0, 16).toUpperCase();
       room.reportHash = hash;
+    } else {
+      room.autoReadyTimeout = Date.now() + 15000;
+      setTimeout(() => {
+        const r = rooms.get(roomId);
+        if (r && r.status === 'finished' && r.autoReadyTimeout) {
+          r.players.forEach((p: any) => p.ready = true);
+          startPhase1(roomId);
+        }
+      }, 15000);
     }
 
     broadcastRoomUpdate(roomId);
