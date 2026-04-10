@@ -71,11 +71,11 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
       {/* Avatar & Info Container */}
       <div className="relative group flex flex-col items-center">
         {/* Score/Coins (Top of Avatar) */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 bg-[#ffd700] border-2 border-[#b8860b] text-black px-2 sm:px-3 py-0.5 rounded-full flex items-center gap-1 shadow-lg whitespace-nowrap min-w-[60px] justify-center">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-400 rounded-full border border-yellow-600 flex items-center justify-center font-black text-[8px] sm:text-[10px] text-yellow-800 shadow-inner">
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 bg-gradient-to-b from-[#FFDF73] to-[#D4AF37] border-2 border-[#8B7355] text-[#4A0000] px-2 sm:px-3 py-0.5 rounded-full flex items-center gap-1 shadow-lg whitespace-nowrap min-w-[60px] justify-center">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-[#FFDF73] rounded-full border border-[#8B7355] flex items-center justify-center font-black text-[8px] sm:text-[10px] text-[#4A0000] shadow-inner">
             $
           </div>
-          <span className="font-black text-xs sm:text-sm drop-shadow-sm">{player.score}</span>
+          <span className="font-black text-xs sm:text-sm drop-shadow-sm">{player.score !== undefined ? player.score : 0}</span>
         </div>
 
         {/* Avatar */}
@@ -87,21 +87,21 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
             }
           }}
           className={cn(
-          "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-slate-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden cursor-pointer",
-          isDealer ? "border-yellow-500 scale-105 ring-2 ring-yellow-500/20" : (player.ready ? "border-blue-500" : "border-slate-700"),
+          "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-[#1e1e1e] shadow-[0_4px_10px_rgba(0,0,0,0.8)] transition-all relative overflow-hidden cursor-pointer",
+          isDealer ? "border-[#D4AF37] scale-105 ring-2 ring-[#D4AF37]/30" : (player.ready ? "border-blue-500" : "border-[#8B7355]"),
           isMegaWin && "mega-win"
         )}>
           {/* Avatar Background Glow */}
           <div className={cn(
-            "absolute inset-0 opacity-20",
-            isDealer ? "bg-yellow-500" : (player.ready ? "bg-blue-500" : "bg-transparent")
+            "absolute inset-0 opacity-30",
+            isDealer ? "bg-[#D4AF37]" : (player.ready ? "bg-blue-500" : "bg-transparent")
           )} />
-          <User className="w-8 h-8 sm:w-12 sm:h-12 text-slate-400 relative z-10" />
+          <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${player.id}&backgroundColor=1e293b`} alt="avatar" className="w-full h-full object-cover relative z-10" />
         </div>
         
         {/* Name Plate (Bottom of Avatar) */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-sm border border-white/10 shadow-lg min-w-[70px] text-center">
-          <div className="text-[10px] sm:text-xs font-bold truncate text-white max-w-[80px]">{player.name}</div>
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-20 bg-[#2a2a2a] backdrop-blur-md px-3 py-0.5 rounded-full border border-[#D4AF37]/50 shadow-lg min-w-[70px] text-center">
+          <div className="text-[10px] sm:text-xs font-bold truncate text-[#E8DCC4] max-w-[80px]">{player.name}</div>
         </div>
         
         {/* Dealer Crown */}
@@ -138,10 +138,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
         )}
       </div>
 
-      <div className="text-center bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/5 shadow-xl min-w-[100px]">
-        <div className="text-xs sm:text-sm font-black truncate text-white mb-0.5">{player.name}</div>
-        <div className="text-[10px] sm:text-xs text-yellow-500 font-mono font-black">💰 {player.score}</div>
-      </div>
+
 
       {/* Score Change Animation attached to avatar instead of card */}
       <AnimatePresence>
@@ -297,6 +294,7 @@ export default function App() {
   const [showCards, setShowCards] = useState(false);
   const [betAnimations, setBetAnimations] = useState<{ id: string, from: string, amount: number }[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   
   // Emotes State
   const [activeEmoteMenu, setActiveEmoteMenu] = useState<{ playerId: string, x: number, y: number } | null>(null);
@@ -382,8 +380,17 @@ export default function App() {
   };
 
   const playSound = (name: string) => {
+    if (!isSoundEnabled) return;
     AudioManager.play(name);
   };
+
+  useEffect(() => {
+    if (isSoundEnabled && isJoined && room?.status && room.status !== 'waiting') {
+      AudioManager.play('bgm');
+    } else {
+      AudioManager.stop('bgm');
+    }
+  }, [isSoundEnabled, isJoined, room?.status]);
 
   useEffect(() => {
     socket.on('roomUpdate', (updatedRoom: Room) => {
@@ -657,8 +664,8 @@ export default function App() {
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
       {/* Poker Table Background */}
       <div className="absolute inset-0 pointer-events-none opacity-100 z-[-10]">
-        <img src="/images/niuniu/bg.jpg" alt="background" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/40" /> {/* Slight darken to make cards pop without hiding red */}
+        <img src="/images/ui/qian.png" alt="background" className="w-full h-full object-cover scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/80" />
       </div>
 
       {/* Peek Cards Button */}
@@ -695,12 +702,20 @@ export default function App() {
         </div>
       </div>
 
-      <button 
-        onClick={() => window.location.reload()}
-        className="absolute top-4 right-6 z-50 p-3 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-2xl transition-all border border-red-600/30"
-      >
-        <LogOut className="w-6 h-6" />
-      </button>
+      <div className="absolute top-4 right-6 z-50 flex items-center gap-3">
+        <button 
+          onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+          className="p-3 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-2xl transition-all border border-blue-600/30"
+        >
+          {isSoundEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+        </button>
+        <button 
+          onClick={() => window.location.reload()}
+          className="p-3 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-2xl transition-all border border-red-600/30"
+        >
+          <LogOut className="w-6 h-6" />
+        </button>
+      </div>
 
       {/* Game Stage */}
       <div className="relative w-full h-screen max-w-7xl mx-auto">
@@ -830,11 +845,11 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="flex flex-col items-center gap-6"
+                className="bg-black/40 backdrop-blur-2xl p-10 rounded-[3rem] border border-white/10 shadow-2xl w-full max-w-md flex flex-col items-center gap-6"
               >
                 <div className="text-center">
-                  <h2 className="text-3xl font-black mb-2 drop-shadow-lg">等待开局</h2>
-                  <p className="text-emerald-200 font-medium">满2人即可开始对决</p>
+                  <h2 className="text-4xl font-black mb-2 text-[#D4AF37] drop-shadow-lg">等待开局</h2>
+                  <p className="text-slate-300 font-medium">满2人即可开始对决</p>
                 </div>
                 
                 <div className="flex flex-col gap-4 w-full max-w-xs">

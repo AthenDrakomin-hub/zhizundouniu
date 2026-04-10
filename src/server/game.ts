@@ -228,7 +228,7 @@ export async function setupGameServer(io: Server) {
           ready: false, 
           cards: [], 
           bull: -1, 
-          score: 1000, 
+          score: 0, 
           finish: false,
           bidMultiplier: 0,
           betMultiplier: 0,
@@ -264,7 +264,7 @@ export async function setupGameServer(io: Server) {
       if (config.gameMode === 'rounds' && room.config.gameMode !== 'rounds') {
         room.players.forEach((p: any) => p.score = 0);
       } else if (config.gameMode === 'endless' && room.config.gameMode !== 'endless') {
-        room.players.forEach((p: any) => p.score = 1000);
+        room.players.forEach((p: any) => p.score = 0);
       }
 
       room.config = { ...room.config, ...config };
@@ -429,7 +429,7 @@ export async function setupGameServer(io: Server) {
         ready: true,
         cards: [],
         bull: -1,
-        score: 1000,
+        score: 0,
         finish: false,
         bidMultiplier: 0,
         betMultiplier: 0,
