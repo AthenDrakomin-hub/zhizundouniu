@@ -151,6 +151,24 @@ export async function setupGameServer(io: Server) {
       }
     });
 
+    socket.on('disconnect', () => {
+      // Find and handle player disconnects across all rooms
+      for (const [roomId, room] of rooms.entries()) {
+        const playerIndex = room.players.findIndex((p: any) => p.id === socket.id);
+        if (playerIndex !== -1) {
+          // If game is in progress, mark them as disconnected instead of removing
+          if (room.status !== 'waiting') {
+             room.players[playerIndex].isDisconnected = true;
+          } else {
+             // If waiting, just remove them
+             room.players.splice(playerIndex, 1);
+          }
+          io.to(roomId).emit('roomUpdated', room);
+          io.to('admin').emit('adminState', Array.from(rooms.values()));
+        }
+      }
+    });
+
     socket.on('joinRoom', ({ roomId, user }) => {
       socket.join(roomId);
       if (!rooms.has(roomId)) {

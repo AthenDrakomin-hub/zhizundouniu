@@ -446,13 +446,18 @@ async function setupGameServer(io) {
         broadcastRoomUpdate(roomId);
       }
     });
-    socket.on("finish", ({ roomId, userId, bull }) => {
+    socket.on("finish", ({ roomId, userId }) => {
       const room = rooms.get(roomId);
       if (!room || room.status !== "playing") return;
       const player = room.players.find((p) => p.id === userId);
       if (player) {
+        if (!player.fifthCardRequested) {
+          player.fifthCardRequested = true;
+          dealFifthCard(room, player);
+        }
         player.finish = true;
-        player.bull = bull;
+        const hand = calculateHand(player.cards);
+        player.bull = hand.type;
       }
       if (room.players.every((p) => p.finish)) {
         calculateScores(roomId);

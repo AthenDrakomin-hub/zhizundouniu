@@ -577,10 +577,10 @@ export default function App() {
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="relative z-10 w-full max-w-sm flex flex-col items-center"
         >
-          {/* Glowing Crown Icon */}
+          {/* Glowing Crown/Logo Icon */}
           <div className="relative mb-12">
             <div className="absolute inset-0 bg-yellow-500 blur-3xl opacity-20 rounded-full" />
-            <img src="/images/ui/crown.png" alt="Crown" className="w-28 h-28 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+            <img src="/images/ui/logo3.png" alt="Logo" className="w-40 h-40 object-contain drop-shadow-[0_0_20px_rgba(234,179,8,0.6)]" />
           </div>
           
           <div className="w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)]">

@@ -108,9 +108,9 @@ export default function App() {
             
             <div className="flex flex-col items-center mb-10">
               <div className="relative mb-6">
-                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                <div className="w-20 h-20 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center shadow-inner relative z-10">
-                  <ShieldCheck className="w-10 h-10 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+                <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full" />
+                <div className="w-24 h-24 bg-black/50 border border-white/10 rounded-2xl flex items-center justify-center shadow-inner relative z-10 p-2">
+                  <img src="/images/ui/logo3.png" alt="Logo" className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
                 </div>
               </div>
               <h1 className="text-3xl font-black tracking-tight text-white mb-2">至尊控制台</h1>
@@ -167,8 +167,8 @@ export default function App() {
 
         <div className="w-full max-w-md p-4 relative z-10">
           <div className="flex items-center justify-between mb-8 mt-4">
-            <div className="flex items-center gap-2 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
-              <ShieldCheck className="w-7 h-7" />
+            <div className="flex items-center gap-3 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+              <img src="/images/ui/logo3.png" alt="Logo" className="w-8 h-8 object-contain" />
               <h1 className="font-black text-xl tracking-wider">房卡管理中心</h1>
             </div>
             <button onClick={() => window.location.reload()} className="text-xs font-bold text-white/50 hover:text-white transition-colors uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full backdrop-blur-sm">退出</button>
