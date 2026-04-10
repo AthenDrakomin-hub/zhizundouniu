@@ -419,6 +419,11 @@ async function startServer() {
       }
     });
 
+    socket.on('sendEmote', ({ roomId, fromId, targetId, emote }) => {
+      io.to(roomId).emit('emoteReceived', { fromId, targetId, emote });
+      io.to(`admin_${roomId}`).emit('emoteReceived', { fromId, targetId, emote });
+    });
+
     socket.on('addBot', ({ roomId }) => {
       const room = rooms.get(roomId);
       if (!room || room.players.length >= room.config.maxPlayers) return;

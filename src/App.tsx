@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, ShieldCheck, Zap, Eye, Crown, Ghost, Volume2, VolumeX, EyeOff, ArrowRight } from 'lucide-react';
@@ -23,12 +23,18 @@ interface PlayerSeatProps {
   roomStatus: string;
   roomId?: string;
   key?: React.Key;
+  onKick?: (id: string) => void;
+  scoreChange?: number;
+  showCards?: boolean;
+  onAvatarClick?: (id: string, rect: DOMRect) => void;
 }
 
-const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId, onKick, scoreChange, showCards }: PlayerSeatProps & { onKick?: (id: string) => void, scoreChange?: number, showCards?: boolean }) => {
+const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId, onKick, scoreChange, showCards, onAvatarClick }: PlayerSeatProps) => {
   const isDealer = player.isDealer;
   const hasFinished = player.finish;
   const bullResult = hasFinished || roomStatus === 'finished' ? calculateBull(player.cards) : null;
+  const isMegaWin = roomStatus === 'finished' && bullResult && bullResult.type >= 10;
+  const avatarRef = useRef<HTMLDivElement>(null);
 
   return (
     <motion.div
@@ -39,7 +45,8 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
         position === "top-left" && "top-12 left-12",
         position === "top-right" && "top-12 right-12",
         position === "mid-left" && "top-1/2 left-4 -translate-y-1/2",
-        position === "mid-right" && "top-1/2 right-4 -translate-y-1/2"
+        position === "mid-right" && "top-1/2 right-4 -translate-y-1/2",
+        isMegaWin && "animate-shake z-[100]"
       )}
     >
       {/* Score Change Animation */}
@@ -56,9 +63,17 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
         </div>
 
         {/* Avatar */}
-        <div className={cn(
-          "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-slate-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden",
-          isDealer ? "border-yellow-500 scale-105 ring-2 ring-yellow-500/20" : (player.ready ? "border-blue-500" : "border-slate-700")
+        <div 
+          ref={avatarRef}
+          onClick={() => {
+            if (onAvatarClick && avatarRef.current) {
+              onAvatarClick(player.id, avatarRef.current.getBoundingClientRect());
+            }
+          }}
+          className={cn(
+          "w-14 h-14 sm:w-20 sm:h-20 mt-2 rounded-xl border-2 flex items-center justify-center bg-slate-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden cursor-pointer",
+          isDealer ? "border-yellow-500 scale-105 ring-2 ring-yellow-500/20" : (player.ready ? "border-blue-500" : "border-slate-700"),
+          isMegaWin && "mega-win"
         )}>
           {/* Avatar Background Glow */}
           <div className={cn(
@@ -73,13 +88,13 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
           <div className="text-[10px] sm:text-xs font-bold truncate text-white max-w-[80px]">{player.name}</div>
         </div>
         
+        {/* Dealer Crown */}
         {isDealer && (
-          <motion.div 
-            initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
-            className="absolute top-0 -right-2 bg-gradient-to-b from-yellow-400 to-red-600 text-white text-[10px] sm:text-xs font-black px-2 py-1 rounded shadow-xl border-2 border-yellow-200 z-40"
-          >
-            庄
-          </motion.div>
+          <img 
+            src="/images/ui/crown.png" 
+            alt="Dealer"
+            className="absolute -top-3 -right-3 w-8 h-8 sm:w-10 sm:h-10 z-20 drop-shadow-md rotate-12"
+          />
         )}
 
         {player.isHost && (
@@ -237,215 +252,46 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
   );
 };
 
-const RoomSettingsModal = ({ room, isOpen, onClose, onUpdate }: { room: Room, isOpen: boolean, onClose: () => void, onUpdate: (config: any) => void }) => {
-  const [config, setConfig] = useState(room.config);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl"
-      >
-        <div className="flex items-center gap-3 mb-8">
-          <Settings className="w-6 h-6 text-blue-500" />
-          <h2 className="text-2xl font-black text-white">房间设置</h2>
-        </div>
-
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">定庄规则</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'wealthiest', label: '大户' },
-                { id: 'winner', label: '赢家' },
-                { id: 'host', label: '房主' }
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setConfig({ ...config, dealerRule: opt.id as any })}
-                  className={cn(
-                    "py-2 rounded-xl text-xs font-bold transition-all border",
-                    config.dealerRule === opt.id ? "bg-blue-600 border-blue-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">底分设置</label>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 5, 10].map(v => (
-                <button
-                  key={v}
-                  onClick={() => setConfig({ ...config, baseScore: v })}
-                  className={cn(
-                    "py-2 rounded-xl text-xs font-bold transition-all border",
-                    config.baseScore === v ? "bg-blue-600 border-blue-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                  )}
-                >
-                  {v}分
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">游戏模式</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'endless', label: '积分模式 (1000分)' },
-                { id: 'rounds', label: '局数模式 (0分起)' }
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setConfig({ ...config, gameMode: opt.id as any })}
-                  className={cn(
-                    "py-2 rounded-xl text-xs font-bold transition-all border",
-                    config.gameMode === opt.id ? "bg-blue-600 border-blue-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {config.gameMode === 'rounds' && (
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">总局数</label>
-              <div className="grid grid-cols-4 gap-2">
-                {[10, 20, 30, 50].map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setConfig({ ...config, totalRounds: r })}
-                    className={cn(
-                      "py-2 rounded-xl text-xs font-bold transition-all border",
-                      config.totalRounds === r ? "bg-blue-600 border-blue-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                    )}
-                  >
-                    {r}局
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">翻倍规则</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'standard', label: '标准' },
-                { id: 'pro', label: '专业' },
-                { id: 'competitive', label: '竞技' }
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setConfig({ ...config, multiplierRule: opt.id as any })}
-                  className={cn(
-                    "py-2 rounded-xl text-xs font-bold transition-all border",
-                    config.multiplierRule === opt.id ? "bg-blue-600 border-blue-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-slate-500">竞技模式: 牛七-九(2倍), 牛牛(3倍), 五小牛(8倍)</p>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">操作限时</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[5, 10, 15].map(s => (
-                <button
-                  key={s}
-                  onClick={() => setConfig({ ...config, timeoutSeconds: s })}
-                  className={cn(
-                    "py-2 rounded-xl text-xs font-bold transition-all border",
-                    config.timeoutSeconds === s ? "bg-blue-600 border-blue-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
-                  )}
-                >
-                  {s}秒
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-3">
-              <Zap className="w-5 h-5 text-yellow-500" />
-              <div>
-                <div className="text-sm font-bold text-white">推注功能</div>
-                <div className="text-[10px] text-slate-500">赢家下局可加大注码</div>
-              </div>
-            </div>
-            <button 
-              onClick={() => setConfig({ ...config, allowPushBet: !config.allowPushBet })}
-              className={cn("w-12 h-6 rounded-full relative transition-all", config.allowPushBet ? "bg-blue-600" : "bg-slate-700")}
-            >
-              <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", config.allowPushBet ? "left-7" : "left-1")} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-emerald-500" />
-              <div>
-                <div className="text-sm font-bold text-white">无牛限注</div>
-                <div className="text-[10px] text-slate-500">上局无牛则下局限1倍</div>
-              </div>
-            </div>
-            <button 
-              onClick={() => setConfig({ ...config, noBullLimit: !config.noBullLimit })}
-              className={cn("w-12 h-6 rounded-full relative transition-all", config.noBullLimit ? "bg-blue-600" : "bg-slate-700")}
-            >
-              <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", config.noBullLimit ? "left-7" : "left-1")} />
-            </button>
-          </div>
-
-          <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">本房激活码 (房卡钥匙)</div>
-            <div className="text-xl font-black text-yellow-500 tracking-widest">{config.roomKey}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mt-10">
-          <button onClick={onClose} className="py-4 rounded-2xl font-bold bg-slate-800 text-slate-400">取消</button>
-          <button 
-            onClick={() => { onUpdate(config); onClose(); }}
-            className="py-4 rounded-2xl font-bold bg-blue-600 text-white shadow-xl shadow-blue-600/20"
-          >
-            保存配置
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
 export default function App() {
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [roomId, setRoomId] = useState('');
   const [tempName, setTempName] = useState('');
   const [isJoined, setIsJoined] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isActivated, setIsActivated] = useState(false);
   const [activationKey, setActivationKey] = useState('');
-  const [isHostMenuOpen, setIsHostMenuOpen] = useState(false);
-  const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [rubbingProgress, setRubbingProgress] = useState(0);
   const [scoreChanges, setScoreChanges] = useState<Record<string, number>>({});
   const [showCards, setShowCards] = useState(false);
   const [betAnimations, setBetAnimations] = useState<{ id: string, from: string, amount: number }[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   
+  // Emotes State
+  const [activeEmoteMenu, setActiveEmoteMenu] = useState<{ playerId: string, x: number, y: number } | null>(null);
+  const [flyingEmotes, setFlyingEmotes] = useState<{ id: string, fromId: string, toId: string, emote: string }[]>([]);
+
+  // Chips State
+  const [flyingChips, setFlyingChips] = useState<{ id: string, fromPos: string, toPos: string }[]>([]);
+
+  const getPlayerPositionStr = (playerId: string, currentRoom: Room) => {
+    if (playerId === user?.id) return "bottom";
+    const otherPlayers = currentRoom.players.filter(p => p.id !== user?.id);
+    const idx = otherPlayers.findIndex(p => p.id === playerId);
+    const positions = ["top-left", "top-right", "mid-left", "mid-right"];
+    return positions[idx] || "top-left";
+  };
+
+  const getCoordinatesFromPos = (pos: string) => {
+    switch (pos) {
+      case "bottom": return { x: "50vw", y: "85vh" };
+      case "top-left": return { x: "15vw", y: "15vh" };
+      case "top-right": return { x: "85vw", y: "15vh" };
+      case "mid-left": return { x: "10vw", y: "50vh" };
+      case "mid-right": return { x: "90vw", y: "50vh" };
+      default: return { x: "50vw", y: "50vh" };
+    }
+  };
+
   const handleCaptureAndShare = async () => {
     const el = document.getElementById('summary-board');
     if (!el) return;
@@ -467,19 +313,44 @@ export default function App() {
     }
   };
 
-  const playSound = (type: 'click' | 'deal' | 'win' | 'lose' | 'bid' | 'bet' | 'reveal' | 'chips') => {
-    const sounds: Record<string, string> = {
-      click: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
-      deal: 'https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3',
-      win: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3',
-      lose: 'https://assets.mixkit.co/active_storage/sfx/251/251-preview.mp3',
-      bid: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
-      bet: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
-      reveal: 'https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3',
-      chips: 'https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3',
-    };
-    const audio = new Audio(sounds[type]);
-    audio.play().catch(() => {});
+  // 简单的音效管理器，使用刚刚引入的真实音频文件
+  const AudioManager = {
+    sounds: {
+      bgm: new Audio('/audio/bgm.mp3'),
+      countDown: new Audio('/audio/countDown.mp3'),
+      deal: new Audio('/audio/effect1.mp3'), // 假设 effect1 是发牌音效
+      chips: new Audio('/audio/effect2.mp3'), // 假设 effect2 是筹码音效
+      heartbeat: new Audio('/audio/effect3.mp3'), // 心跳音效
+      bigwin: new Audio('/audio/victory.mp3'), // 大奖音效
+      lose: new Audio('/audio/fail.mp3'), // 输局音效
+      emote: new Audio('/audio/pop.mp3') // 表情弹出音效
+    } as Record<string, HTMLAudioElement>,
+    play(name: string) {
+      try {
+        const audio = this.sounds[name];
+        if (!audio) return;
+        audio.currentTime = 0;
+        if (name === 'bgm') {
+          audio.loop = true;
+          audio.volume = 0.3;
+        }
+        audio.play().catch(() => {});
+      } catch (e) {
+        // 忽略浏览器自动播放限制报错
+      }
+    },
+    stop(name: string) {
+      try {
+        if (this.sounds[name]) {
+          this.sounds[name].pause();
+          this.sounds[name].currentTime = 0;
+        }
+      } catch (e) {}
+    }
+  };
+
+  const playSound = (name: string) => {
+    AudioManager.play(name);
   };
 
   useEffect(() => {
@@ -515,25 +386,72 @@ export default function App() {
           }
         }
 
-        // Play deal sound when status changes to playing
+        // Play sounds based on status change
         if (updatedRoom.status === 'playing' && room.status !== 'playing') {
           playSound('deal');
+        } else if (updatedRoom.status === 'dealing_5' && room.status !== 'dealing_5') {
+          playSound('heartbeat');
+        } else if (updatedRoom.status === 'betting' && room.status !== 'betting') {
+          playSound('bet');
         }
       }
       setRoom(updatedRoom);
 
-      // 当游戏进入结算且我是赢家时，触发满屏金币红包彩带
+      // 游戏进入结算状态
       if (updatedRoom.status === 'finished' && room?.status !== 'finished') {
+        playSound('chips');
         const me = updatedRoom.players.find(p => p.id === user?.id);
+        
+        // 满屏红包彩带
         if (me && me.lastWin > 0) {
           confetti({
             particleCount: 150,
             spread: 80,
             origin: { y: 0.6 },
-            colors: ['#FFD700', '#FF0000', '#FFA500'] // 发财金和鲜红
+            colors: ['#FFD700', '#FF0000', '#FFA500']
           });
         }
+        
+        // 牛牛或以上大牌震屏 + 音效
+        if (me && calculateBull(me.cards).type >= 10) {
+          playSound('bigwin');
+        }
+
+        // 筹码飞行动画
+        const dealer = updatedRoom.players.find(p => p.isDealer);
+        if (dealer) {
+          const dealerPos = getPlayerPositionStr(dealer.id, updatedRoom);
+          const newChips: { id: string, fromPos: string, toPos: string }[] = [];
+          
+          updatedRoom.players.forEach(p => {
+            if (p.isDealer) return;
+            const pPos = getPlayerPositionStr(p.id, updatedRoom);
+            if (p.lastWin < 0) {
+              // Loser -> Dealer
+              for(let i=0; i<3; i++) {
+                newChips.push({ id: Math.random().toString(36).substr(2, 9), fromPos: pPos, toPos: dealerPos });
+              }
+            } else if (p.lastWin > 0) {
+              // Dealer -> Winner
+              for(let i=0; i<3; i++) {
+                newChips.push({ id: Math.random().toString(36).substr(2, 9), fromPos: dealerPos, toPos: pPos });
+              }
+            }
+          });
+          
+          setFlyingChips(newChips);
+          setTimeout(() => setFlyingChips([]), 2000);
+        }
       }
+    });
+
+    socket.on('emoteReceived', ({ fromId, targetId, emote }) => {
+      playSound('emote');
+      const animId = Math.random().toString(36).substr(2, 9);
+      setFlyingEmotes(prev => [...prev, { id: animId, fromId, toId: targetId, emote }]);
+      setTimeout(() => {
+        setFlyingEmotes(prev => prev.filter(e => e.id !== animId));
+      }, 1500);
     });
 
     socket.on('kicked', () => {
@@ -592,6 +510,26 @@ export default function App() {
     socket.emit('finish', { roomId: room.id, userId: user.id, bull: type });
   };
 
+  const handleAvatarClick = (playerId: string, rect: DOMRect) => {
+    if (playerId === user?.id) return; // Don't emote to self
+    setActiveEmoteMenu({
+      playerId,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 20
+    });
+  };
+
+  const handleSendEmote = (emote: string) => {
+    if (!user || !room || !activeEmoteMenu) return;
+    socket.emit('sendEmote', {
+      roomId: room.id,
+      fromId: user.id,
+      targetId: activeEmoteMenu.playerId,
+      emote
+    });
+    setActiveEmoteMenu(null);
+  };
+
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -645,7 +583,7 @@ export default function App() {
   const positions = ["top-left", "top-right", "mid-left", "mid-right"];
 
   return (
-    <div className="min-h-screen bg-[#1c1c1e] text-white font-sans overflow-hidden relative">
+    <div className="min-h-screen text-white font-sans overflow-hidden relative">
       {/* Poker Table Background from User Image */}
       <div 
         className="absolute inset-0 flex items-center justify-center pointer-events-none bg-cover bg-center bg-no-repeat opacity-90"
@@ -677,33 +615,15 @@ export default function App() {
       )}
 
       {/* Header Info */}
-      <div className="absolute top-4 left-6 z-50 flex items-center gap-6">
-        <div className="bg-black/40 backdrop-blur-xl px-5 py-3 rounded-2xl border border-white/10 shadow-2xl">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">当前局数</div>
-          <div className="text-sm font-black text-white">第 {room?.currentRound}/{room?.config.totalRounds} 局</div>
+      <div className="absolute top-4 left-6 z-50 flex items-center gap-3">
+        <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-lg flex items-center gap-2">
+          <span className="text-xs font-bold text-white/70">局数</span>
+          <span className="text-sm font-black text-white">{room?.currentRound}/{room?.config.totalRounds}</span>
         </div>
-        <div className="bg-black/40 backdrop-blur-xl px-5 py-3 rounded-2xl border border-white/10 shadow-2xl">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">我的积分</div>
-          <div className="text-sm font-black text-yellow-400">{currentPlayer?.score}</div>
+        <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-lg flex items-center gap-2">
+          <span className="text-xs font-bold text-yellow-500/70">积分</span>
+          <span className="text-sm font-black text-yellow-400">{currentPlayer?.score}</span>
         </div>
-        
-        {currentPlayer?.isHost && room?.status === 'waiting' && (
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="bg-black/30 backdrop-blur-md p-2 rounded-2xl border border-white/10 hover:bg-white/10 transition-all group"
-            >
-              <Settings className="w-6 h-6 text-slate-400 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
-            </button>
-            <button 
-              onClick={() => setIsHostMenuOpen(true)}
-              className="bg-yellow-600/20 backdrop-blur-md px-4 py-2 rounded-2xl border border-yellow-600/30 hover:bg-yellow-600 hover:text-black transition-all text-yellow-500 font-bold text-xs flex items-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              管理后台
-            </button>
-          </div>
-        )}
       </div>
 
       <button 
@@ -725,6 +645,7 @@ export default function App() {
             roomId={room?.id}
             onKick={currentPlayer?.isHost ? (id) => socket.emit('kickPlayer', { roomId: room?.id, targetId: id }) : undefined}
             scoreChange={scoreChanges[player.id]}
+            onAvatarClick={handleAvatarClick}
           />
         ))}
 
@@ -738,6 +659,7 @@ export default function App() {
             roomId={room?.id}
             scoreChange={scoreChanges[currentPlayer.id]}
             showCards={showCards}
+            onAvatarClick={handleAvatarClick}
           />
         )}
 
@@ -771,6 +693,67 @@ export default function App() {
             ))}
           </AnimatePresence>
 
+          {/* Emote Menu */}
+          <AnimatePresence>
+            {activeEmoteMenu && (
+              <>
+                <div className="fixed inset-0 z-[100]" onClick={() => setActiveEmoteMenu(null)} />
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.5, y: 20 }}
+                  style={{ left: activeEmoteMenu.x, top: activeEmoteMenu.y }}
+                  className="fixed -translate-x-1/2 -translate-y-full z-[110] bg-black/80 backdrop-blur-xl p-2 rounded-full border border-white/20 shadow-2xl flex gap-2"
+                >
+                  {['🍺', '💣', '🌹', '💩', '👍'].map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleSendEmote(emoji)}
+                      className="text-2xl sm:text-3xl hover:scale-125 active:scale-95 transition-transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Flying Emotes */}
+          {flyingEmotes.map(emote => {
+            const fromPos = getCoordinatesFromPos(getPlayerPositionStr(emote.fromId, room!));
+            const toPos = getCoordinatesFromPos(getPlayerPositionStr(emote.toId, room!));
+            return (
+              <motion.div
+                key={emote.id}
+                initial={{ left: fromPos.x, top: fromPos.y, scale: 0.5, opacity: 0 }}
+                animate={{ left: toPos.x, top: toPos.y, scale: 2, opacity: 1 }}
+                exit={{ opacity: 0, scale: 3 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="fixed -translate-x-1/2 -translate-y-1/2 z-[120] text-6xl pointer-events-none drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+              >
+                {emote.emote}
+              </motion.div>
+            );
+          })}
+
+          {/* Flying Chips */}
+          {flyingChips.map(chip => {
+            const fromPos = getCoordinatesFromPos(chip.fromPos);
+            const toPos = getCoordinatesFromPos(chip.toPos);
+            return (
+              <motion.img
+                key={chip.id}
+                src="/images/ui/douzi.png"
+                initial={{ left: fromPos.x, top: fromPos.y, scale: 0 }}
+                animate={{ left: toPos.x, top: toPos.y, scale: 1, rotate: 360 }}
+                transition={{ duration: 0.5 + Math.random() * 0.3, ease: "easeOut" }}
+                onAnimationComplete={() => playSound('chips')}
+                className="fixed -translate-x-1/2 -translate-y-1/2 z-[90] pointer-events-none w-8 h-8 drop-shadow-md"
+              />
+            );
+          })}
+
           <AnimatePresence mode="wait">
             {room?.status === 'waiting' && (
               <motion.div 
@@ -797,7 +780,7 @@ export default function App() {
         <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6">
           <motion.div 
             initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="bg-slate-900/80 backdrop-blur-2xl p-10 rounded-[3rem] border border-white/10 shadow-2xl w-full max-w-md text-center"
+            className="bg-black/40 backdrop-blur-2xl p-10 rounded-[3rem] border border-white/10 shadow-2xl w-full max-w-md text-center"
           >
             <div className="w-20 h-20 bg-yellow-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-yellow-500/30">
               <ShieldCheck className="w-10 h-10 text-yellow-500" />
@@ -844,15 +827,6 @@ export default function App() {
                     </button>
                   )}
                   
-                  {room.players.length < 5 && (
-                    <button
-                      onClick={() => socket.emit('addBot', { roomId: room.id })}
-                      className="bg-black/40 hover:bg-black/60 text-white py-3 rounded-2xl text-sm font-bold transition-all border border-white/10 flex items-center justify-center gap-2"
-                    >
-                      <Users className="w-4 h-4" />
-                      添加机器人
-                    </button>
-                  )}
                 </div>
               </motion.div>
             )}
@@ -1019,7 +993,7 @@ export default function App() {
                 id="summary-board"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-slate-900 border-4 border-yellow-500 p-10 rounded-[3rem] shadow-[0_0_100px_rgba(234,179,8,0.4)] text-center max-w-3xl w-full z-[60] relative overflow-hidden"
+                className="bg-black/60 backdrop-blur-2xl border-4 border-yellow-500 p-10 rounded-[3rem] shadow-[0_0_100px_rgba(234,179,8,0.4)] text-center max-w-3xl w-full z-[60] relative overflow-hidden"
               >
                 {/* Anti-counterfeit Watermark */}
                 <div className="absolute inset-0 pointer-events-none opacity-[0.05] rotate-[-15deg] flex flex-wrap gap-x-32 gap-y-24 items-center justify-center scale-150">
@@ -1166,149 +1140,9 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
-      {/* Floating Room Card Info */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
-        <button 
-          onClick={() => setIsRulesOpen(true)}
-          className="bg-black/40 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shadow-2xl hover:bg-white/10 transition-all flex items-center gap-3 group"
-        >
-          <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/30">
-            <Info className="w-6 h-6 text-blue-400" />
-          </div>
-          <div className="text-left">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">当前规则</div>
-            <div className="text-sm font-black text-white">查看本场设置</div>
-          </div>
-        </button>
 
-        <div className="bg-gradient-to-br from-yellow-600 to-orange-700 p-4 rounded-2xl border border-yellow-400/30 shadow-2xl flex items-center gap-3">
-          <div className="w-10 h-10 bg-black/20 rounded-xl flex items-center justify-center border border-white/10">
-            <ShieldCheck className="w-6 h-6 text-yellow-200" />
-          </div>
-          <div className="text-left">
-            <div className="text-[10px] font-bold text-yellow-200/60 uppercase tracking-tighter">房卡状态</div>
-            <div className="text-sm font-black text-white">已激活 (剩余{room?.config.totalRounds! - room?.currentRound!}局)</div>
-          </div>
-        </div>
-      </div>
 
-      {/* Modals */}
-      {room && (
-        <RoomSettingsModal 
-          room={room} 
-          isOpen={isSettingsOpen} 
-          onClose={() => setIsSettingsOpen(false)}
-          onUpdate={(config) => socket.emit('updateConfig', { roomId: room.id, config })}
-        />
-      )}
 
-      {/* Rules Modal */}
-      {isRulesOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl"
-          >
-            <h2 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-              <Info className="w-6 h-6 text-blue-500" />
-              本场规则看板
-            </h2>
-            <div className="space-y-4">
-              {[
-                { label: '游戏模式', value: room?.config.gameMode === 'rounds' ? `${room.config.totalRounds}局总结算` : '无限积分模式' },
-                { label: '定庄规则', value: room?.config.dealerRule === 'wealthiest' ? '大户坐庄' : room?.config.dealerRule === 'winner' ? '赢家坐庄' : '房主坐庄' },
-                { label: '翻倍规则', value: room?.config.multiplierRule === 'competitive' ? '竞技 (最高8倍)' : '标准 (最高3倍)' },
-                { label: '推注功能', value: room?.config.allowPushBet ? '已开启' : '已关闭' },
-                { label: '无牛限注', value: room?.config.noBullLimit ? '已开启' : '已关闭' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                  <span className="text-slate-400 font-bold text-sm">{item.label}</span>
-                  <span className="text-white font-black">{item.value}</span>
-                </div>
-              ))}
-            </div>
-            <button 
-              onClick={() => setIsRulesOpen(false)}
-              className="w-full mt-8 py-4 rounded-2xl font-bold bg-blue-600 text-white"
-            >
-              我知道了
-            </button>
-          </motion.div>
-        </div>
-      )}
-
-      {room && isHostMenuOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl"
-          >
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-6 h-6 text-yellow-500" />
-                <h2 className="text-2xl font-black text-white">管理后台</h2>
-              </div>
-              <button onClick={() => setIsHostMenuOpen(false)} className="text-slate-500 hover:text-white">
-                <LogOut className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-black/40 p-6 rounded-3xl border border-white/5">
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">当前房间激活码</div>
-                <div className="flex items-center justify-between">
-                  <div className="text-3xl font-black text-yellow-500 tracking-widest">{room.config.roomKey}</div>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(room.config.roomKey || '');
-                      alert('激活码已复制');
-                    }}
-                    className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-lg text-[10px] font-bold border border-yellow-500/20"
-                  >
-                    复制
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-500 mt-2">将此码发给玩家即可激活进入</p>
-              </div>
-
-              <div className="bg-black/40 p-6 rounded-3xl border border-white/5">
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">钥匙消耗统计</div>
-                <div className="text-3xl font-black text-emerald-400">1 把</div>
-                <p className="text-[10px] text-slate-500 mt-2">本场消耗</p>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">玩家列表 ({room.players.length}/{room.config.maxPlayers})</label>
-                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                  {room.players.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                      <div className="flex items-center gap-3">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-bold text-white">{p.name} {p.isHost && "(房主)"}</span>
-                      </div>
-                      {!p.isHost && (
-                        <button 
-                          onClick={() => socket.emit('kickPlayer', { roomId: room.id, targetId: p.id })}
-                          className="text-xs font-bold text-red-500 hover:text-red-400"
-                        >
-                          踢出
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setIsHostMenuOpen(false)}
-              className="w-full mt-8 py-4 rounded-2xl font-bold bg-slate-800 text-white"
-            >
-              返回游戏
-            </button>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

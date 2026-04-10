@@ -17,10 +17,32 @@ interface CardProps {
   onRub?: (progress: number) => void;
 }
 
+// Map standard suits to the image index logic.
+// In many Chinese open source card sets, mapping is 1-13 Spades, 14-26 Hearts, 27-39 Clubs, 40-52 Diamonds.
+const getCardImageIndex = (suit: string, value: string) => {
+  let suitOffset = 0;
+  switch (suit) {
+    case '♠': suitOffset = 0; break;
+    case '♥': suitOffset = 13; break;
+    case '♣': suitOffset = 26; break;
+    case '♦': suitOffset = 39; break;
+  }
+  
+  let valIndex = 0;
+  if (value === 'A') valIndex = 1;
+  else if (value === 'J') valIndex = 11;
+  else if (value === 'Q') valIndex = 12;
+  else if (value === 'K') valIndex = 13;
+  else valIndex = parseInt(value);
+  
+  return suitOffset + valIndex;
+};
+
 export const Card = ({ card, index, hidden = false, className, isRubbing = false, onRub }: CardProps) => {
-  const isRed = card && ['♥', '♦'].includes(card.suit);
+  const cardIndex = card ? getCardImageIndex(card.suit, card.value) : 0;
   const controls = useAnimation();
   const [isFlipped, setIsFlipped] = useState(!hidden);
+  const [rubProgress, setRubProgress] = useState(0);
   
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -31,6 +53,8 @@ export const Card = ({ card, index, hidden = false, className, isRubbing = false
 
   useEffect(() => {
     setIsFlipped(!hidden);
+    if (!hidden) setRubProgress(1);
+    else setRubProgress(0);
   }, [hidden]);
 
   useEffect(() => {
@@ -57,6 +81,7 @@ export const Card = ({ card, index, hidden = false, className, isRubbing = false
       // Anti-mistouch threshold: distance > 30px AND time > 200ms
       if (distance > 30 && timeElapsed > 200) {
         const progress = Math.min(1, Math.max(0, distance / 100));
+        setRubProgress(progress);
         onRub(progress);
         
         if (progress > 0.5) {
@@ -71,8 +96,11 @@ export const Card = ({ card, index, hidden = false, className, isRubbing = false
       x.set(0);
       y.set(0);
       touchStartRef.current = null;
+      if (!isFlipped) setRubProgress(0);
     }
   };
+
+  const blurAmount = Math.max(0, 10 - rubProgress * 20);
 
   return (
     <motion.div
@@ -94,48 +122,46 @@ export const Card = ({ card, index, hidden = false, className, isRubbing = false
       className={cn(
         "relative w-16 h-24 sm:w-24 sm:h-36 rounded-xl sm:rounded-2xl shadow-2xl transform-gpu [transform-style:preserve-3d]",
         "border-2 border-white/10 touch-none",
+        isRubbing && "cursor-grab active:cursor-grabbing",
         className
       )}
     >
       {/* Front */}
       <div 
         className={cn(
-          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl bg-white flex flex-col justify-between p-1.5 sm:p-2 overflow-hidden",
+          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl bg-white overflow-hidden",
           !isFlipped && "opacity-0"
         )}
-        style={{ backfaceVisibility: 'hidden', transform: 'rotateY(0deg)' }}
+        style={{ 
+          backfaceVisibility: 'hidden', 
+          transform: 'rotateY(0deg)',
+          filter: isRubbing ? `blur(${blurAmount}px)` : 'none',
+          transition: 'filter 0.1s ease-out'
+        }}
       >
-        <div className="absolute inset-0 opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-        
         {card && (
-          <>
-            <div className={cn("text-lg sm:text-2xl font-black leading-none", isRed ? "text-red-600" : "text-black")}>
-              {card.value}
-            </div>
-            <div className={cn("text-2xl sm:text-4xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20", isRed ? "text-red-600" : "text-black")}>
-              {card.suit}
-            </div>
-            <div className={cn("text-2xl sm:text-4xl absolute bottom-1.5 right-1.5 leading-none", isRed ? "text-red-600" : "text-black")}>
-              {card.suit}
-            </div>
-          </>
+          <img 
+            src={`/images/cards/card-${cardIndex}.png`} 
+            alt={`${card.suit}${card.value}`}
+            className="w-full h-full object-cover"
+            draggable="false"
+          />
         )}
       </div>
 
       {/* Back */}
       <div 
         className={cn(
-          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl overflow-hidden border-4 border-white",
-          "bg-gradient-to-br from-red-800 to-red-950",
+          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl overflow-hidden border-2 border-yellow-500/50",
+          "bg-red-800",
           isFlipped && "opacity-0"
         )}
         style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
       >
-        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/argyle.png')]" />
-        <div className="absolute inset-2 border-2 border-yellow-500/50 rounded-lg sm:rounded-xl" />
+        <div className="absolute inset-0 opacity-20 bg-[url('/images/ui/bg.png')] bg-cover" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-8 h-8 sm:w-12 sm:h-12 bg-yellow-500/20 rounded-full border border-yellow-500/50 flex items-center justify-center rotate-45">
-            <div className="w-4 h-4 sm:w-6 sm:h-6 bg-yellow-500/40 rounded-sm rotate-45" />
+          <div className="w-8 h-12 border border-yellow-500/30 rounded flex items-center justify-center">
+            <div className="w-4 h-4 bg-yellow-500/50 rounded-full" />
           </div>
         </div>
       </div>
