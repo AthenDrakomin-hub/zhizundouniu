@@ -584,12 +584,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
-      {/* Poker Table Background from User Image */}
+      {/* Poker Table Background */}
       <div 
-        className="absolute inset-0 flex items-center justify-center pointer-events-none bg-cover bg-center bg-no-repeat opacity-90"
-        style={{ backgroundImage: `url('https://sfb-assets.s3.ap-northeast-1.amazonaws.com/table-bg.jpg')` }}
+        className="absolute inset-0 pointer-events-none bg-cover bg-center bg-no-repeat opacity-100"
+        style={{ backgroundImage: `url('/images/ui/bg.png')` }}
       >
-        <div className="absolute inset-0 bg-black/40" /> {/* Darken overlay to make cards/UI pop */}
+        <div className="absolute inset-0 bg-black/10" /> {/* Slight darken to make cards pop without hiding red */}
       </div>
 
       {/* Peek Cards Button */}
