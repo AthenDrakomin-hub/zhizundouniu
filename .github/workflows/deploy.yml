@@ -1,0 +1,53 @@
+name: Deploy to Japan Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      run: |
+        npm install
+        cd admin-client && npm install
+
+    - name: Build Projects
+      run: |
+        npm run build
+        cd admin-client && npm run build
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || '22' }}
+        script: |
+          cd /path/to/your/deployment/dir
+          # Pull latest code or copy files (assuming files are rsync'd or git pulled)
+          # Example using git pull:
+          git pull origin main
+          
+          # Install dependencies
+          npm install
+          cd admin-client && npm install && cd ..
+          
+          # Build
+          npm run build
+          cd admin-client && npm run build && cd ..
+          
+          # Restart the service (assuming PM2 is used)
+          pm2 restart zhizundouniu || pm2 start ts-node --name "zhizundouniu" -- server.ts

@@ -12,7 +12,6 @@ export interface RoomConfig {
   gameMode: 'endless' | 'rounds';
   totalRounds: number;
   timeoutSeconds: number;
-  taxRate: number; // e.g., 0.01 for 1%
   roomKey?: string;
   controlMode: 'none' | 'dealer_win' | 'dealer_lose';
   baseScore: number;
@@ -33,12 +32,9 @@ export interface Player {
   hasBid: boolean;
   hasBet: boolean;
   lastWin: number;
-  lastTax: number;
   maxAllowedBet: number;
   isHost: boolean;
   isBot?: boolean;
-  originalProfit: number; // Cumulative profit before tax
-  totalTaxPaid: number;   // Cumulative tax paid
   stats: {
     bullBullCount: number;
     noBullCount: number;
@@ -47,6 +43,8 @@ export interface Player {
     luckCount: number;   // For "运气之王"
     charityCount: number; // For "慈善大使"
   };
+  fifthCardRequested: boolean;
+  presetFifthCard?: Card;
 }
 
 export interface Room {
@@ -59,6 +57,6 @@ export interface Room {
   prevRoundNoBull: boolean;
   currentRound: number;
   phaseStartTime: number;
-  totalRake: number; // Total rake collected by the room
   serialNumber: string;
+  remainingDeck: Card[];
 }

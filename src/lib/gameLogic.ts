@@ -1,4 +1,4 @@
-import { Card } from '../types';
+import type { Card } from '../types';
 
 export function getCardValue(card: Card): number {
   const v = card.value;
@@ -68,4 +68,19 @@ export function getBullName(bull: number): string {
   if (bull === 12) return '五花牛';
   if (bull === 13) return '五小牛';
   return `牛${bull}`;
+}
+
+export function getWinningCards(current4Cards: Card[], remainingDeck: Card[]): { card: Card, bull: number }[] {
+  if (current4Cards.length !== 4) return [];
+  const result: { card: Card, bull: number }[] = [];
+  
+  for (const card of remainingDeck) {
+    const testCards = [...current4Cards, card];
+    const bullResult = calculateBull(testCards);
+    if (bullResult.type >= 10) { // Only suggest Bull Bull and above (10, 11, 12, 13)
+      result.push({ card, bull: bullResult.type });
+    }
+  }
+  
+  return result;
 }

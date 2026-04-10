@@ -38,7 +38,7 @@ async function startServer() {
               }
             });
             if (room.players.every((p: any) => p.hasBid)) determineDealer(roomId);
-            else io.to(roomId).emit('roomUpdate', room);
+            else broadcastRoomUpdate(roomId);
           } else if (room.status === 'betting') {
             room.players.forEach((p: any) => {
               if (!p.isDealer && !p.hasBet) {
@@ -48,17 +48,26 @@ async function startServer() {
             });
             const nonDealers = room.players.filter((p: any) => !p.isDealer);
             if (nonDealers.every((p: any) => p.hasBet)) startPhase5(roomId);
-            else io.to(roomId).emit('roomUpdate', room);
+            else broadcastRoomUpdate(roomId);
           } else if (room.status === 'playing') {
             room.players.forEach((p: any) => {
               if (!p.finish) {
+                if (!p.fifthCardRequested) {
+                  p.fifthCardRequested = true;
+                  if (p.presetFifthCard) {
+                    p.cards.push(p.presetFifthCard);
+                  } else if (p.cards.length === 4 && room.remainingDeck.length > 0) {
+                    const card = room.remainingDeck.splice(0, 1)[0];
+                    p.cards.push(card);
+                  }
+                }
                 const hand = calculateHand(p.cards);
                 p.bull = hand.type;
                 p.finish = true;
               }
             });
             if (room.players.every((p: any) => p.finish)) calculateScores(roomId);
-            else io.to(roomId).emit('roomUpdate', room);
+            else broadcastRoomUpdate(roomId);
           }
         }
       }
@@ -67,6 +76,16 @@ async function startServer() {
 
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
+
+    socket.on('adminLogin', ({ roomId, roomKey }) => {
+      const room = rooms.get(roomId);
+      if (room && room.config.roomKey === roomKey.toUpperCase()) {
+        socket.join(`admin_${roomId}`);
+        socket.emit('adminLoginSuccess', room);
+      } else {
+        socket.emit('error', '房卡钥匙错误或房间不存在');
+      }
+    });
 
     socket.on('joinRoom', ({ roomId, user }) => {
       socket.join(roomId);
@@ -80,8 +99,8 @@ async function startServer() {
           prevRoundNoBull: false,
           currentRound: 0,
           phaseStartTime: Date.now(),
-          totalRake: 0,
           serialNumber: `SN-${Date.now().toString(36).toUpperCase()}`,
+          remainingDeck: [],
           config: {
             maxPlayers: 5,
             multiplierRule: 'competitive',
@@ -91,7 +110,6 @@ async function startServer() {
             gameMode: 'rounds',
             totalRounds: 20,
             timeoutSeconds: 15,
-            taxRate: 0.01,
             roomKey: `SFB-${Math.floor(100 + Math.random() * 899)}-${Math.floor(100 + Math.random() * 899)}`,
             controlMode: 'none',
             baseScore: 1
@@ -121,11 +139,8 @@ async function startServer() {
           hasBid: false,
           hasBet: false,
           lastWin: 0,
-          lastTax: 0,
           maxAllowedBet: 5,
           isHost: isHost,
-          originalProfit: 0,
-          totalTaxPaid: 0,
           stats: {
             bullBullCount: 0,
             noBullCount: 0,
@@ -133,13 +148,14 @@ async function startServer() {
             bigWinCount: 0,
             luckCount: 0,
             charityCount: 0
-          }
+          },
+          fifthCardRequested: false
         });
       } else {
         existingPlayer.socketId = socket.id;
       }
 
-      io.to(roomId).emit('roomUpdate', room);
+      broadcastRoomUpdate(roomId);
     });
 
     socket.on('updateConfig', ({ roomId, config }) => {
@@ -154,20 +170,30 @@ async function startServer() {
       }
 
       room.config = { ...room.config, ...config };
-      io.to(roomId).emit('roomUpdate', room);
+      broadcastRoomUpdate(roomId);
     });
 
-    socket.on('forceChangeCard', ({ roomId, targetId, cardIndex, newCard }) => {
+    socket.on('forceChangeCard', ({ roomId, targetId, newCard }) => {
       const room = rooms.get(roomId);
       if (!room) return;
       const player = room.players.find((p: any) => p.id === targetId);
-      if (player && player.cards[cardIndex]) {
-        player.cards[cardIndex] = newCard;
-        // Notify the host immediately
-        const host = room.players.find((p: any) => p.isHost);
-        if (host) {
-          io.to(host.socketId).emit('roomUpdate', room);
+      if (player && !player.fifthCardRequested) {
+        // Find the index of the new card in remainingDeck and remove it
+        const cardIndex = room.remainingDeck.findIndex((c: any) => c.suit === newCard.suit && c.value === newCard.value);
+        if (cardIndex !== -1) {
+          room.remainingDeck.splice(cardIndex, 1);
         }
+        
+        if (player.presetFifthCard) {
+           // Put the old 5th card back into remainingDeck
+           room.remainingDeck.push(player.presetFifthCard);
+           player.presetFifthCard = newCard;
+        } else {
+           player.presetFifthCard = newCard;
+        }
+
+        // Notify the admin immediately
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -182,6 +208,27 @@ async function startServer() {
       }
     });
 
+    socket.on('request_last_card', ({ roomId, userId }) => {
+      const room = rooms.get(roomId);
+      if (!room || room.status !== 'playing') return;
+      const player = room.players.find((p: any) => p.id === userId);
+      if (player && !player.fifthCardRequested) {
+        player.fifthCardRequested = true;
+        
+        // If a card was already preset by the admin, keep it.
+        // Otherwise, draw one from the remaining deck.
+        if (player.presetFifthCard) {
+          player.cards.push(player.presetFifthCard);
+        } else if (player.cards.length === 4 && room.remainingDeck.length > 0) {
+          const card = room.remainingDeck.splice(0, 1)[0];
+          player.cards.push(card);
+        }
+        
+        // Let the client know their 5th card
+        broadcastRoomUpdate(roomId);
+      }
+    });
+
     socket.on('kickPlayer', ({ roomId, targetId }) => {
       const room = rooms.get(roomId);
       if (!room) return;
@@ -189,7 +236,7 @@ async function startServer() {
       if (target) {
         io.to(target.socketId).emit('kicked');
         room.players = room.players.filter((p: any) => p.id !== targetId);
-        io.to(roomId).emit('roomUpdate', room);
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -203,7 +250,7 @@ async function startServer() {
       if (room.players.length >= 2 && room.players.every((p: any) => p.ready)) {
         startPhase1(roomId);
       } else {
-        io.to(roomId).emit('roomUpdate', room);
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -230,7 +277,7 @@ async function startServer() {
       if (room.players.every((p: any) => p.hasBid)) {
         determineDealer(roomId);
       } else {
-        io.to(roomId).emit('roomUpdate', room);
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -248,7 +295,7 @@ async function startServer() {
       if (nonDealers.every((p: any) => p.hasBet)) {
         startPhase5(roomId);
       } else {
-        io.to(roomId).emit('roomUpdate', room);
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -265,7 +312,7 @@ async function startServer() {
       if (room.players.every((p: any) => p.finish)) {
         calculateScores(roomId);
       } else {
-        io.to(roomId).emit('roomUpdate', room);
+        broadcastRoomUpdate(roomId);
       }
     });
 
@@ -293,11 +340,8 @@ async function startServer() {
         hasBid: false,
         hasBet: false,
         lastWin: 0,
-        lastTax: 0,
         maxAllowedBet: 5,
         isHost: false,
-        originalProfit: 0,
-        totalTaxPaid: 0,
         stats: {
           bullBullCount: 0,
           noBullCount: 0,
@@ -309,7 +353,7 @@ async function startServer() {
       };
 
       room.players.push(bot);
-      io.to(roomId).emit('roomUpdate', room);
+      broadcastRoomUpdate(roomId);
 
       // If all ready, start game
       if (room.players.length >= 2 && room.players.every((p: any) => p.ready)) {
@@ -317,6 +361,31 @@ async function startServer() {
       }
     });
   });
+
+  function broadcastRoomUpdate(roomId: string) {
+    const room = rooms.get(roomId);
+    if (!room) return;
+
+    // Send full room state to admins
+    io.to(`admin_${roomId}`).emit('roomUpdate', room);
+
+    // Deep clone room and strip sensitive info for regular players
+    const safeRoom = JSON.parse(JSON.stringify(room));
+    safeRoom.remainingDeck = []; // Hide remaining deck
+    safeRoom.players.forEach((p: any) => {
+      // Hide preset 5th card
+      delete p.presetFifthCard;
+      // Hide other players' cards if not finished/game_over
+      // Wait, let the client hide it, or strip it here to be safe.
+      // But we just need to ensure the 5th card is hidden if not requested.
+      if (p.cards && p.cards.length === 5 && !p.fifthCardRequested) {
+        // This shouldn't happen with our new logic, but just in case
+        p.cards.pop();
+      }
+    });
+
+    io.to(roomId).emit('roomUpdate', safeRoom);
+  }
 
   function startPhase1(roomId: string) {
     const room = rooms.get(roomId);
@@ -329,7 +398,7 @@ async function startServer() {
     shuffle(deck);
 
     room.players.forEach((p: any) => {
-      p.cards = deck.splice(0, 5); // Deal 5 cards
+      p.cards = deck.splice(0, 4); // Deal 4 cards initially
       p.ready = false;
       p.finish = false;
       p.hasBid = false;
@@ -337,14 +406,18 @@ async function startServer() {
       p.isDealer = false;
       p.bidMultiplier = 0;
       p.betMultiplier = 0;
+      p.fifthCardRequested = false;
+      delete p.presetFifthCard;
     });
 
-    io.to(roomId).emit('roomUpdate', room);
+    room.remainingDeck = deck; // Save the remaining deck
+
+    broadcastRoomUpdate(roomId);
     
     setTimeout(() => {
       room.status = 'bidding';
       room.phaseStartTime = Date.now();
-      io.to(roomId).emit('roomUpdate', room);
+      broadcastRoomUpdate(roomId);
       processBotTurns(roomId);
     }, 2000);
   }
@@ -404,7 +477,7 @@ async function startServer() {
       }
     });
     
-    io.to(roomId).emit('roomUpdate', room);
+    broadcastRoomUpdate(roomId);
     processBotTurns(roomId);
   }
 
@@ -413,38 +486,18 @@ async function startServer() {
     if (!room) return;
 
     room.status = 'dealing_5';
-    const deck = createDeck();
-    const dealtCards = room.players.flatMap((p: any) => p.cards);
-    const remainingDeck = deck.filter(c => !dealtCards.some(dc => dc.suit === c.suit && dc.value === c.value));
-    shuffle(remainingDeck);
 
-    // God Mode: Intervention (Swap the 5th card if needed)
-    if (room.config.controlMode !== 'none') {
-      const dealer = room.players.find((p: any) => p.isDealer);
-      const nonDealers = room.players.filter((p: any) => !p.isDealer);
-      
-      if (room.config.controlMode === 'dealer_win') {
-        const highCards = remainingDeck.filter(c => ['10', 'J', 'Q', 'K'].includes(c.value));
-        if (highCards.length > 0) {
-          const newCard = highCards[0];
-          dealer.cards[4] = newCard; // Swap 5th card
-        }
-      } else if (room.config.controlMode === 'dealer_lose') {
-        const lowCards = remainingDeck.filter(c => ['A', '2', '3', '4'].includes(c.value));
-        if (lowCards.length > 0) {
-          const newCard = lowCards[0];
-          dealer.cards[4] = newCard; // Swap 5th card
-        }
-      }
-    }
+    // God Mode: In this phase, we don't deal the 5th card yet.
+    // The admin might have already preset the 5th card via forceChangeCard.
+    // If not, it will be randomly drawn from remainingDeck when requested.
 
     room.phaseStartTime = Date.now();
-    io.to(roomId).emit('roomUpdate', room);
+    broadcastRoomUpdate(roomId);
 
     setTimeout(() => {
       room.status = 'playing';
       room.phaseStartTime = Date.now();
-      io.to(roomId).emit('roomUpdate', room);
+      broadcastRoomUpdate(roomId);
       processBotTurns(roomId);
     }, 2000);
   }
@@ -474,7 +527,7 @@ async function startServer() {
         if (room.players.every((p: any) => p.hasBid)) {
           determineDealer(roomId);
         } else {
-          io.to(roomId).emit('roomUpdate', room);
+          broadcastRoomUpdate(roomId);
         }
       } else if (room.status === 'betting') {
         bots.forEach((bot: any) => {
@@ -494,11 +547,20 @@ async function startServer() {
         if (nonDealers.every((p: any) => p.hasBet)) {
           startPhase5(roomId);
         } else {
-          io.to(roomId).emit('roomUpdate', room);
+          broadcastRoomUpdate(roomId);
         }
       } else if (room.status === 'playing') {
         bots.forEach((bot: any) => {
           if (!bot.finish) {
+            if (!bot.fifthCardRequested) {
+              bot.fifthCardRequested = true;
+              if (bot.presetFifthCard) {
+                bot.cards.push(bot.presetFifthCard);
+              } else if (bot.cards.length === 4 && room.remainingDeck.length > 0) {
+                const card = room.remainingDeck.splice(0, 1)[0];
+                bot.cards.push(card);
+              }
+            }
             const hand = calculateHand(bot.cards);
             bot.bull = hand.type;
             bot.finish = true;
@@ -507,7 +569,7 @@ async function startServer() {
         if (room.players.every((p: any) => p.finish)) {
           calculateScores(roomId);
         } else {
-          io.to(roomId).emit('roomUpdate', room);
+          broadcastRoomUpdate(roomId);
         }
       }
     }, 1500 + Math.random() * 1000);
@@ -564,11 +626,6 @@ async function startServer() {
     });
 
     // Handle "不够赔" (Proportional Payout)
-    // In rounds mode, we allow negative scores, so "不够赔" only applies if dealer score is positive and we want to protect it,
-    // but the user said "所有人积分相加是否为 0", implying a zero-sum game with negative scores allowed.
-    // However, to keep it consistent with "不够赔" logic, we'll only apply it if it's NOT endless mode OR if we want to enforce bankruptcy.
-    // Actually, for "0分起步", we should probably allow negative scores freely.
-    
     const isZeroSum = room.config.gameMode === 'rounds';
     const availableToPay = isZeroSum ? Infinity : (dealer.score + totalDealerGain);
     const payoutRatio = totalDealerLoss > availableToPay ? availableToPay / totalDealerLoss : 1;
@@ -583,27 +640,16 @@ async function startServer() {
 
       if (res.playerWins) {
         finalAmount = isZeroSum ? res.amount : Math.floor(res.amount * payoutRatio);
-        const tax = Math.floor(finalAmount * room.config.taxRate);
-        const net = finalAmount - tax;
-        
-        p.score += net;
-        p.lastWin = net;
-        p.lastTax = tax;
-        p.originalProfit += finalAmount;
-        p.totalTaxPaid += tax;
+        p.score += finalAmount;
+        p.lastWin = finalAmount;
         
         dealer.score -= finalAmount;
-        dealer.originalProfit -= finalAmount;
-        room.totalRake += tax;
       } else {
         finalAmount = isZeroSum ? res.amount : Math.min(res.amount, p.score);
         p.score -= finalAmount;
         p.lastWin = -finalAmount;
-        p.lastTax = 0;
-        p.originalProfit -= finalAmount;
         
         dealer.score += finalAmount;
-        dealer.originalProfit += finalAmount;
       }
 
       if (p.lastWin > roundMaxWin) {
@@ -611,16 +657,6 @@ async function startServer() {
         roundWinnerId = p.id;
       }
     });
-
-    // Deduct tax from dealer if they won the round overall
-    const dealerRoundProfit = room.players.filter((p: any) => !p.isDealer).reduce((acc: number, p: any) => acc - p.lastWin - p.lastTax, 0);
-    if (dealerRoundProfit > 0) {
-      const tax = Math.floor(dealerRoundProfit * room.config.taxRate);
-      dealer.score -= tax;
-      dealer.lastTax = tax;
-      dealer.totalTaxPaid += tax;
-      room.totalRake += tax;
-    }
 
     // If dealer won overall, they might be the winner
     const dealerRoundWin = isZeroSum ? (totalDealerGain - totalDealerLoss) : (totalDealerGain - (totalDealerLoss * payoutRatio));
@@ -657,7 +693,7 @@ async function startServer() {
       room.status = 'game_over';
     }
 
-    io.to(roomId).emit('roomUpdate', room);
+    broadcastRoomUpdate(roomId);
   }
 
   // Helper for server-side calculation
