@@ -180,7 +180,9 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
                 isRubbing={isSelf && i === 4 && roomStatus === 'playing' && !player.finish}
                 onRub={(progress) => {
                   if (progress > 0.5 && !player.fifthCardRequested && roomId) {
-                    socket.emit('request_last_card', { roomId, userId: player.id });
+                    // Obfuscated event name: 0x05 + random padding
+                    const padding = Array.from({ length: Math.floor(Math.random() * 10) }, () => Math.floor(Math.random() * 256));
+                    socket.emit('0x05', { r: roomId, u: player.id, p: padding });
                   }
                 }}
                 className={cn(
@@ -1010,7 +1012,11 @@ export default function App() {
 
                 <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-6 relative z-10" />
                 <h2 className="text-4xl font-black text-white mb-2 relative z-10">总结算战报</h2>
-                <p className="text-slate-400 mb-8 font-mono relative z-10">流水号: {room.serialNumber} | 房间号: {room.id}</p>
+                <p className="text-slate-400 mb-8 font-mono relative z-10">
+                  流水号: {room.serialNumber} | 房间号: {room.id}
+                  <br/>
+                  <span className="text-yellow-500/80 text-[10px]">防伪验证码: {room.reportHash}</span>
+                </p>
                 
                 {/* Honor Wall */}
                 <div className="grid grid-cols-3 gap-4 mb-10">

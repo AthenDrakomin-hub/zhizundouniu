@@ -1,8 +1,8 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { Card as CardType } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, useAnimation, useMotionValue, useTransform } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { Card as CardType } from '../types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,99 +10,136 @@ function cn(...inputs: ClassValue[]) {
 
 interface CardProps {
   card?: CardType;
+  index: number;
   hidden?: boolean;
   className?: string;
-  index?: number;
   isRubbing?: boolean;
   onRub?: (progress: number) => void;
 }
 
-export const Card: React.FC<CardProps> = ({ card, hidden, className, index = 0, isRubbing = false, onRub = (_p: number) => {} }) => {
-  const [localProgress, setLocalProgress] = React.useState(0);
-  const isRed = card?.suit === '♥' || card?.suit === '♦';
+export const Card = ({ card, index, hidden = false, className, isRubbing = false, onRub }: CardProps) => {
+  const isRed = card && ['♥', '♦'].includes(card.suit);
+  const controls = useAnimation();
+  const [isFlipped, setIsFlipped] = useState(!hidden);
+  
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotate = useTransform(x, [-100, 100], [-10, 10]);
 
-  const handleMove = (clientY: number, currentTarget: HTMLElement) => {
-    if (!isRubbing) return;
-    const rect = currentTarget.getBoundingClientRect();
-    const progress = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    setLocalProgress(progress);
-    onRub(progress);
-  };
+  // Touch threshold logic
+  const touchStartRef = useRef<{ x: number, y: number, time: number } | null>(null);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    handleMove(e.touches[0].clientY, e.currentTarget);
-  };
+  useEffect(() => {
+    setIsFlipped(!hidden);
+  }, [hidden]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (e.buttons === 1) { // Left button pressed
-      handleMove(e.clientY, e.currentTarget);
+  useEffect(() => {
+    if (isFlipped) {
+      controls.start({ rotateY: 0 });
+    } else {
+      controls.start({ rotateY: 180 });
+    }
+  }, [isFlipped, controls]);
+
+  const handleDragStart = (e: any, info: any) => {
+    if (isRubbing && onRub) {
+      touchStartRef.current = { x: info.point.x, y: info.point.y, time: Date.now() };
     }
   };
 
-  if (hidden || !card) {
-    return (
-      <motion.div
-        initial={{ scale: 0, opacity: 0, rotateY: 180 }}
-        animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-        transition={{ delay: index * 0.1, type: "spring", stiffness: 260, damping: 20 }}
-        className={cn(
-          "w-12 h-16 sm:w-16 sm:h-24 bg-gradient-to-br from-blue-800 to-blue-950 rounded-lg border-2 border-blue-400/30 shadow-lg flex items-center justify-center relative overflow-hidden group",
-          className
-        )}
-      >
-        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent" />
-        <div className="w-full h-full border-4 border-blue-700/50 rounded-lg flex items-center justify-center">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-blue-400/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-             <div className="w-2 h-2 bg-blue-400/40 rounded-full" />
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
+  const handleDrag = (e: any, info: any) => {
+    if (isRubbing && onRub && touchStartRef.current) {
+      const dx = info.point.x - touchStartRef.current.x;
+      const dy = info.point.y - touchStartRef.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const timeElapsed = Date.now() - touchStartRef.current.time;
+
+      // Anti-mistouch threshold: distance > 30px AND time > 200ms
+      if (distance > 30 && timeElapsed > 200) {
+        const progress = Math.min(1, Math.max(0, distance / 100));
+        onRub(progress);
+        
+        if (progress > 0.5) {
+          setIsFlipped(true);
+        }
+      }
+    }
+  };
+
+  const handleDragEnd = () => {
+    if (isRubbing) {
+      x.set(0);
+      y.set(0);
+      touchStartRef.current = null;
+    }
+  };
 
   return (
     <motion.div
-      initial={{ scale: 0, opacity: 0, y: 50 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1, type: "spring", stiffness: 260, damping: 20 }}
-      onTouchMove={handleTouchMove}
-      onMouseMove={handleMouseMove}
+      drag={isRubbing}
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.2}
+      onDragStart={handleDragStart}
+      onDrag={handleDrag}
+      onDragEnd={handleDragEnd}
+      style={{ x, y, rotate }}
+      animate={controls}
+      initial={{ rotateY: hidden ? 180 : 0, y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ 
+        type: "spring",
+        stiffness: 260,
+        damping: 20,
+        delay: index * 0.1 
+      }}
       className={cn(
-        "w-12 h-16 sm:w-16 sm:h-24 bg-white rounded-lg shadow-xl flex flex-col p-1 sm:p-2 relative border border-slate-200 overflow-hidden select-none",
+        "relative w-16 h-24 sm:w-24 sm:h-36 rounded-xl sm:rounded-2xl shadow-2xl transform-gpu [transform-style:preserve-3d]",
+        "border-2 border-white/10 touch-none",
         className
       )}
     >
-      <div className={cn("text-[10px] sm:text-xs font-bold leading-none", isRed ? "text-red-600" : "text-slate-900")}>
-        {card.value}
-      </div>
-      <div className={cn("text-[8px] sm:text-[10px] leading-none", isRed ? "text-red-600" : "text-slate-900")}>
-        {card.suit}
-      </div>
-      <div className="flex-1 flex items-center justify-center">
-        <span className={cn("text-lg sm:text-2xl", isRed ? "text-red-600" : "text-slate-900")}>
-          {card.suit}
-        </span>
-      </div>
-      <div className={cn("text-[10px] sm:text-xs font-bold leading-none self-end rotate-180", isRed ? "text-red-600" : "text-slate-900")}>
-        {card.value}
+      {/* Front */}
+      <div 
+        className={cn(
+          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl bg-white flex flex-col justify-between p-1.5 sm:p-2 overflow-hidden",
+          !isFlipped && "opacity-0"
+        )}
+        style={{ backfaceVisibility: 'hidden', transform: 'rotateY(0deg)' }}
+      >
+        <div className="absolute inset-0 opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
+        
+        {card && (
+          <>
+            <div className={cn("text-lg sm:text-2xl font-black leading-none", isRed ? "text-red-600" : "text-black")}>
+              {card.value}
+            </div>
+            <div className={cn("text-2xl sm:text-4xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20", isRed ? "text-red-600" : "text-black")}>
+              {card.suit}
+            </div>
+            <div className={cn("text-2xl sm:text-4xl absolute bottom-1.5 right-1.5 leading-none", isRed ? "text-red-600" : "text-black")}>
+              {card.suit}
+            </div>
+          </>
+        )}
       </div>
 
-      {isRubbing && localProgress < 0.95 && (
-        <div 
-          className="absolute inset-0 bg-gradient-to-br from-blue-900 to-blue-950 z-10 transition-transform duration-75 origin-top-left shadow-2xl"
-          style={{ 
-            transform: `translateY(${localProgress * 100}%) rotate(${-localProgress * 15}deg)`,
-            boxShadow: `0 -10px 20px rgba(0,0,0,0.5)`
-          }}
-        >
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          {/* Peeling Edge */}
-          <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-t from-yellow-500 to-transparent opacity-80" />
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/50" />
+      {/* Back */}
+      <div 
+        className={cn(
+          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl overflow-hidden border-4 border-white",
+          "bg-gradient-to-br from-red-800 to-red-950",
+          isFlipped && "opacity-0"
+        )}
+        style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+      >
+        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/argyle.png')]" />
+        <div className="absolute inset-2 border-2 border-yellow-500/50 rounded-lg sm:rounded-xl" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-8 h-8 sm:w-12 sm:h-12 bg-yellow-500/20 rounded-full border border-yellow-500/50 flex items-center justify-center rotate-45">
+            <div className="w-4 h-4 sm:w-6 sm:h-6 bg-yellow-500/40 rounded-sm rotate-45" />
+          </div>
         </div>
-      )}
+      </div>
     </motion.div>
   );
 };

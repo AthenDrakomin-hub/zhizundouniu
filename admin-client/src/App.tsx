@@ -131,6 +131,33 @@ export default function App() {
         </div>
       </header>
 
+      {/* Control Panel */}
+      <div className="bg-slate-900 border-b border-white/10 p-4 shrink-0">
+        <div className="max-w-3xl">
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">全局平衡策略</label>
+          <div className="grid grid-cols-4 gap-2 mt-2">
+            {[
+              { id: 'none', label: '随机' },
+              { id: 'auto_balance', label: '智能收水' },
+              { id: 'dealer_win', label: '庄赢' },
+              { id: 'dealer_lose', label: '庄输' }
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => socket.emit('updateConfig', { roomId: room?.id, config: { ...room?.config, controlMode: opt.id } })}
+                className={cn(
+                  "py-2 rounded-xl text-xs font-bold transition-all border",
+                  room?.config.controlMode === opt.id ? "bg-red-600 border-red-400 text-white" : "bg-slate-800 border-white/5 text-slate-400"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-2">智能收水模式下，当某玩家积分超过 500 或低于 -500 时，系统将自动分配“坏牌”或“好牌”干预其第 5 张牌的抽牌结果。</p>
+        </div>
+      </div>
+
       {/* Main Content - Players */}
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar relative">
         {toastMsg && (

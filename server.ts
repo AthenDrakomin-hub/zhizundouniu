@@ -4,9 +4,31 @@ import { Server } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize SQLite database
+async function initDB() {
+  const db = await open({
+    filename: path.join(__dirname, 'database.sqlite'),
+    driver: sqlite3.Database
+  });
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS rooms (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  return db;
+}
 
 async function startServer() {
   const app = express();
@@ -19,9 +41,41 @@ async function startServer() {
   });
 
   const PORT = 3000;
+  const db = await initDB();
 
   // Game State
   const rooms = new Map<string, any>();
+
+  // Load rooms from DB on startup
+  const savedRooms = await db.all('SELECT * FROM rooms');
+  for (const row of savedRooms) {
+    try {
+      const roomData = JSON.parse(row.data);
+      // Only load rooms that are not game_over
+      if (roomData.status !== 'game_over') {
+        // Reset socket IDs and ready states since players need to reconnect
+        roomData.players.forEach((p: any) => {
+          p.socketId = '';
+          if (roomData.status === 'waiting') p.ready = false;
+        });
+        rooms.set(roomData.id, roomData);
+      }
+    } catch (e) {
+      console.error('Failed to parse room data from DB:', e);
+    }
+  }
+
+  // Save room state to DB
+  async function saveRoomToDB(room: any) {
+    try {
+      await db.run(
+        'INSERT OR REPLACE INTO rooms (id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+        [room.id, JSON.stringify(room)]
+      );
+    } catch (e) {
+      console.error('Failed to save room to DB:', e);
+    }
+  }
 
   // Global Timeout Checker
   setInterval(() => {
@@ -112,6 +166,7 @@ async function startServer() {
             timeoutSeconds: 15,
             roomKey: `SFB-${Math.floor(100 + Math.random() * 899)}-${Math.floor(100 + Math.random() * 899)}`,
             controlMode: 'none',
+            autoBalanceThreshold: 500,
             baseScore: 1
           }
         });
@@ -208,7 +263,11 @@ async function startServer() {
       }
     });
 
-    socket.on('request_last_card', ({ roomId, userId }) => {
+    socket.on('0x05', (payload) => {
+      // Obfuscated payload: { r: roomId, u: userId, p: padding }
+      const roomId = payload.r;
+      const userId = payload.u;
+      
       const room = rooms.get(roomId);
       if (!room || room.status !== 'playing') return;
       const player = room.players.find((p: any) => p.id === userId);
@@ -385,6 +444,8 @@ async function startServer() {
     });
 
     io.to(roomId).emit('roomUpdate', safeRoom);
+    // Persist room state after broadcasting updates
+    saveRoomToDB(room);
   }
 
   function startPhase1(roomId: string) {
@@ -487,8 +548,40 @@ async function startServer() {
 
     room.status = 'dealing_5';
 
+    // Global Auto-Balance (Shadow Control)
+    if (room.config.controlMode === 'auto_balance') {
+      const threshold = room.config.autoBalanceThreshold || 500;
+      room.players.forEach((p: any) => {
+        if (!p.presetFifthCard && p.cards.length === 4) {
+          // If player has won too much, give them a bad card
+          if (p.score >= threshold) {
+            const badCards = room.remainingDeck.filter((c: any) => ['A', '2', '3', '4'].includes(c.value));
+            if (badCards.length > 0) {
+              // Pick the first bad card
+              const targetCard = badCards[0];
+              const idx = room.remainingDeck.findIndex((c: any) => c.suit === targetCard.suit && c.value === targetCard.value);
+              if (idx !== -1) {
+                p.presetFifthCard = room.remainingDeck.splice(idx, 1)[0];
+              }
+            }
+          }
+          // If player has lost too much, give them a good card
+          else if (p.score <= -threshold) {
+            const goodCards = room.remainingDeck.filter((c: any) => ['10', 'J', 'Q', 'K'].includes(c.value));
+            if (goodCards.length > 0) {
+              const targetCard = goodCards[0];
+              const idx = room.remainingDeck.findIndex((c: any) => c.suit === targetCard.suit && c.value === targetCard.value);
+              if (idx !== -1) {
+                p.presetFifthCard = room.remainingDeck.splice(idx, 1)[0];
+              }
+            }
+          }
+        }
+      });
+    }
+
     // God Mode: In this phase, we don't deal the 5th card yet.
-    // The admin might have already preset the 5th card via forceChangeCard.
+    // The admin might have already preset the 5th card via forceChangeCard or Auto-Balance.
     // If not, it will be randomly drawn from remainingDeck when requested.
 
     room.phaseStartTime = Date.now();
@@ -691,6 +784,10 @@ async function startServer() {
     // Check for game over
     if (room.config.gameMode === 'rounds' && room.currentRound >= room.config.totalRounds) {
       room.status = 'game_over';
+      // Generate Anti-counterfeit Hash
+      const reportData = room.players.map((p: any) => `${p.id}:${p.score}`).sort().join('|');
+      const hash = crypto.createHash('sha256').update(`${room.id}|${room.serialNumber}|${reportData}`).digest('hex').substring(0, 16).toUpperCase();
+      room.reportHash = hash;
     }
 
     broadcastRoomUpdate(roomId);

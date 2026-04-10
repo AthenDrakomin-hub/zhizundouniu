@@ -13,7 +13,8 @@ export interface RoomConfig {
   totalRounds: number;
   timeoutSeconds: number;
   roomKey?: string;
-  controlMode: 'none' | 'dealer_win' | 'dealer_lose';
+  controlMode: 'none' | 'dealer_win' | 'dealer_lose' | 'auto_balance';
+  autoBalanceThreshold: number; // e.g. 500 points
   baseScore: number;
 }
 
@@ -58,5 +59,6 @@ export interface Room {
   currentRound: number;
   phaseStartTime: number;
   serialNumber: string;
+  reportHash?: string;
   remainingDeck: Card[];
 }
