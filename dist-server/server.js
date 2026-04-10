@@ -1,12 +1,64 @@
 // server.ts
-import express from "express";
+import express2 from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { createServer as createViteServer } from "vite";
-import path from "path";
-import { fileURLToPath } from "url";
+
+// src/server/db.ts
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
+import path from "path";
+import { fileURLToPath } from "url";
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path.dirname(path.dirname(path.dirname(__filename)));
+var dbInstance = null;
+async function initDB() {
+  if (dbInstance) return dbInstance;
+  dbInstance = await open({
+    filename: path.join(__dirname, "database.sqlite"),
+    driver: sqlite3.Database
+  });
+  await dbInstance.exec(`
+    CREATE TABLE IF NOT EXISTS rooms (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  return dbInstance;
+}
+function getDB() {
+  if (!dbInstance) {
+    throw new Error("Database not initialized. Call initDB first.");
+  }
+  return dbInstance;
+}
+
+// src/server/routes.ts
+import express from "express";
+import { createServer as createViteServer } from "vite";
+import path2 from "path";
+async function setupRoutes(app) {
+  const apiRouter = express.Router();
+  apiRouter.get("/status", (req, res) => {
+    res.json({ status: "ok" });
+  });
+  app.use("/api", apiRouter);
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa"
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path2.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path2.join(distPath, "index.html"));
+    });
+  }
+}
+
+// src/server/game.ts
 import crypto from "crypto";
 
 // src/lib/gameLogic.ts
@@ -83,35 +135,10 @@ function pickBadCard(current4Cards, remainingDeck) {
   return outcomes[randomIndex].card;
 }
 
-// server.ts
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
-async function initDB() {
-  const db = await open({
-    filename: path.join(__dirname, "database.sqlite"),
-    driver: sqlite3.Database
-  });
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS rooms (
-      id TEXT PRIMARY KEY,
-      data TEXT NOT NULL,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  return db;
-}
-async function startServer() {
-  const app = express();
-  const httpServer = createServer(app);
-  const io = new Server(httpServer, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
-    }
-  });
-  const PORT = 3e3;
-  const db = await initDB();
-  const rooms = /* @__PURE__ */ new Map();
+// src/server/game.ts
+var rooms = /* @__PURE__ */ new Map();
+async function setupGameServer(io) {
+  const db = getDB();
   const savedRooms = await db.all("SELECT * FROM rooms");
   for (const row of savedRooms) {
     try {
@@ -432,6 +459,10 @@ async function startServer() {
       } else {
         broadcastRoomUpdate(roomId);
       }
+    });
+    socket.on("sendEmote", ({ roomId, fromId, targetId, emote }) => {
+      io.to(roomId).emit("emoteReceived", { fromId, targetId, emote });
+      io.to(`admin_${roomId}`).emit("emoteReceived", { fromId, targetId, emote });
     });
     socket.on("addBot", ({ roomId }) => {
       const room = rooms.get(roomId);
@@ -857,21 +888,24 @@ async function startServer() {
       [array[i], array[j]] = [array[j], array[i]];
     }
   }
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
+}
+
+// server.ts
+async function startServer() {
+  const app = express2();
+  const httpServer = createServer(app);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+  const PORT = 3e3;
+  await initDB();
+  await setupRoutes(app);
+  await setupGameServer(io);
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
-startServer();
+startServer().catch(console.error);

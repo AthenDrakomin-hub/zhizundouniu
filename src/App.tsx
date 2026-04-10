@@ -34,6 +34,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
   const hasFinished = player.finish;
   const bullResult = hasFinished || roomStatus === 'finished' ? calculateBull(player.cards) : null;
   const isMegaWin = roomStatus === 'finished' && bullResult && bullResult.type >= 10;
+  const isWinner = roomStatus === 'finished' && player.lastWin > 0;
   const avatarRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -49,6 +50,21 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
         isMegaWin && "animate-shake z-[100]"
       )}
     >
+      {/* Winner Light Effect */}
+      {isWinner && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1.5, opacity: 0.8, rotate: 360 }}
+          transition={{ 
+            rotate: { repeat: Infinity, duration: 6, ease: "linear" },
+            scale: { type: "spring", bounce: 0.5 }
+          }}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 pointer-events-none z-[-1]"
+        >
+          <img src="/images/niuniu/win_light.png" alt="win light" className="w-full h-full object-contain mix-blend-screen" />
+        </motion.div>
+      )}
+
       {/* Score Change Animation */}
       {/* Moved to side of avatar */}
 
@@ -223,26 +239,42 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
           )}
         </div>
 
-        {/* Bull Result Overlay (Wood Style) */}
-        {bullResult && (
+        {/* Bull Result Overlay (Image Style) */}
+        {bullResult && bullResult.type !== -1 && (
           <motion.div 
-            initial={{ scale: 0, y: 10 }}
-            animate={{ scale: 1, y: 0 }}
-            className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none"
+            initial={{ scale: 0, y: 20, opacity: 0 }}
+            animate={{ 
+              scale: [0, 1.2, 1], 
+              y: 0, 
+              opacity: 1 
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 200,
+              damping: 10,
+              mass: 0.8
+            }}
+            className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
           >
-            <div className="relative">
-              {/* Wooden Plaque Background */}
-              <div className="absolute inset-0 bg-[#5c2e0e] rounded-md border-2 border-[#3e1a05] shadow-[0_4px_10px_rgba(0,0,0,0.5)]" />
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] opacity-30 rounded-md" />
-              {/* Nails */}
-              <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
-              <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
-              <div className="absolute bottom-1 left-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
-              <div className="absolute bottom-1 right-1 w-1.5 h-1.5 bg-gray-400 rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" />
-              
-              {/* Text */}
-              <div className="relative px-4 py-1 text-yellow-500 font-black text-xs sm:text-sm drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] whitespace-nowrap tracking-wider">
-                {getBullName(bullResult.type)}
+            <img 
+              src={`/images/niuniu/cow_${bullResult.type}.png`} 
+              alt={getBullName(bullResult.type)}
+              className="w-20 sm:w-28 h-auto object-contain"
+              onError={(e) => {
+                // Fallback to text if image not found
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextElementSibling) {
+                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block';
+                }
+              }}
+            />
+            <div className="hidden">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#5c2e0e] rounded-md border-2 border-[#3e1a05] shadow-[0_4px_10px_rgba(0,0,0,0.5)]" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] opacity-30 rounded-md" />
+                <div className="relative px-4 py-1 text-yellow-500 font-black text-xs sm:text-sm whitespace-nowrap">
+                  {getBullName(bullResult.type)}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -585,8 +617,9 @@ export default function App() {
   return (
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
       {/* Poker Table Background */}
-      <div className="absolute inset-0 pointer-events-none opacity-100">
-        <div className="absolute inset-0 bg-black/10" /> {/* Slight darken to make cards pop without hiding red */}
+      <div className="absolute inset-0 pointer-events-none opacity-100 z-[-10]">
+        <img src="/images/niuniu/bg.jpg" alt="background" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/40" /> {/* Slight darken to make cards pop without hiding red */}
       </div>
 
       {/* Peek Cards Button */}
@@ -741,12 +774,12 @@ export default function App() {
             return (
               <motion.img
                 key={chip.id}
-                src="/images/ui/douzi.png"
+                src="/images/niuniu/coin_gold.png"
                 initial={{ left: fromPos.x, top: fromPos.y, scale: 0 }}
-                animate={{ left: toPos.x, top: toPos.y, scale: 1, rotate: 360 }}
-                transition={{ duration: 0.5 + Math.random() * 0.3, ease: "easeOut" }}
+                animate={{ left: toPos.x, top: toPos.y, scale: 1.5, rotate: 720 }}
+                transition={{ duration: 0.6 + Math.random() * 0.4, ease: "easeOut" }}
                 onAnimationComplete={() => playSound('chips')}
-                className="fixed -translate-x-1/2 -translate-y-1/2 z-[90] pointer-events-none w-8 h-8 drop-shadow-md"
+                className="fixed -translate-x-1/2 -translate-y-1/2 z-[90] pointer-events-none w-10 h-10 drop-shadow-[0_5px_10px_rgba(255,215,0,0.5)] object-contain"
               />
             );
           })}
@@ -948,8 +981,15 @@ export default function App() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-black/60 backdrop-blur-2xl p-10 rounded-[3rem] border-2 border-yellow-500/30 shadow-[0_0_100px_rgba(234,179,8,0.2)] text-center max-w-md w-full"
               >
-                <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-yellow-500/20">
-                  <Trophy className="w-12 h-12 text-black" />
+                <div className="flex items-center justify-center mx-auto mb-6 relative w-40 h-24">
+                  <img src="/images/niuniu/win.png" alt="win" className="w-full h-full object-contain absolute z-10 drop-shadow-[0_10px_20px_rgba(255,215,0,0.5)]" />
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+                    className="absolute inset-0 z-0 scale-[2]"
+                  >
+                    <img src="/images/niuniu/win_light.png" className="w-full h-full object-contain mix-blend-screen opacity-60" />
+                  </motion.div>
                 </div>
                 <h2 className="text-4xl font-black mb-2 text-white">对局结束</h2>
                 <p className="text-slate-400 mb-6 font-medium">结算完成</p>

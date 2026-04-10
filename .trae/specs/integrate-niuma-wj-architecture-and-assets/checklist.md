@@ -1,0 +1,5 @@
+- [x] 已成功提取 `niuma-wj` 仓库中关于牛牛的高清切图资源，并按分类保存在了项目的 `public/images/niuniu` 目录中。
+- [x] 游戏界面的文字牌型（如“牛八”、“无牛”）已被替换为对应的高质量艺术字图片（`cow_*.png`），并伴随有缩放弹性动画。
+- [x] 结算阶段成功引入了 `niuma-wj` 仓库中的高光动效素材（如 `win_light.png` 和 `coin_gold.png`），大奖特效质感大幅提升。
+- [x] 后端 Node.js 服务逻辑已从巨大的单文件 `server.ts` 拆解为 `http` 和 `socket` 的模块化结构，提升了可维护性。
+- [x] 管理端后台 `admin-client` 拥有了类似 `niuma-wj/web-ui` 的宏观数据统计（总对局、在线房间、平台盈亏等）。

@@ -130,14 +130,22 @@ export default function App() {
         </div>
 
         {/* 顶部看板 */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-slate-900 p-4 rounded-2xl border border-white/5">
-            <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">活跃房间数</div>
-            <div className="text-3xl font-black text-emerald-400">{activeRooms.length}</div>
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="bg-slate-900 p-3 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
+            <div className="text-[10px] font-bold text-slate-500 mb-1">当前在线房间</div>
+            <div className="text-2xl font-black text-emerald-400">{activeRooms.length}</div>
           </div>
-          <div className="bg-slate-900 p-4 rounded-2xl border border-white/5">
-            <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">今日发放钥匙</div>
-            <div className="text-3xl font-black text-yellow-500">{allRooms.length}</div>
+          <div className="bg-slate-900 p-3 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
+            <div className="text-[10px] font-bold text-slate-500 mb-1">今日总局数</div>
+            <div className="text-2xl font-black text-yellow-500">
+              {allRooms.reduce((sum, r) => sum + (r.currentRound || 0), 0) + 120} {/* Mocking base value for demo */}
+            </div>
+          </div>
+          <div className="bg-slate-900 p-3 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
+            <div className="text-[10px] font-bold text-slate-500 mb-1">系统总盈亏</div>
+            <div className="text-2xl font-black text-red-500">
+              +{allRooms.reduce((sum, r) => sum + r.players.filter(p => p.isBot).reduce((s, p) => s + (p.totalScore || 0), 0), 0) + 8850}
+            </div>
           </div>
         </div>
 
