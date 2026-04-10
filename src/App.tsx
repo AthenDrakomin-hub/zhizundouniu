@@ -582,19 +582,13 @@ export default function App() {
   const positions = ["top-left", "top-right", "mid-left", "mid-right"];
 
   return (
-    <div className="min-h-screen bg-[#064e3b] text-white font-sans overflow-hidden relative">
-      {/* Poker Table Background */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[90%] h-[70%] bg-[#065f46] rounded-[200px] border-[12px] border-[#047857] shadow-[inset_0_0_100px_rgba(0,0,0,0.5),0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden">
-          {/* Table Texture */}
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
-          <div className="absolute inset-0 border-[2px] border-white/10 rounded-[190px] m-4" />
-          
-          {/* Center Logo */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-10">
-            <Trophy className="w-64 h-64 text-white rotate-12" />
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#1c1c1e] text-white font-sans overflow-hidden relative">
+      {/* Poker Table Background from User Image */}
+      <div 
+        className="absolute inset-0 flex items-center justify-center pointer-events-none bg-cover bg-center bg-no-repeat opacity-90"
+        style={{ backgroundImage: `url('https://sfb-assets.s3.ap-northeast-1.amazonaws.com/table-bg.jpg')` }}
+      >
+        <div className="absolute inset-0 bg-black/40" /> {/* Darken overlay to make cards/UI pop */}
       </div>
 
       {/* Peek Cards Button */}
