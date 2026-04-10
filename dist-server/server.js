@@ -264,14 +264,22 @@ async function setupGameServer(io) {
       }
     });
     socket.on("adminResetAll", async () => {
+      if (!socket.rooms.has("admin_global")) {
+        console.warn(`[Security] \u62E6\u622A\u5230\u975E\u7BA1\u7406\u5458 Socket ${socket.id} \u5C1D\u8BD5\u6267\u884C adminResetAll`);
+        return;
+      }
+      console.log(`[Admin] \u7BA1\u7406\u5458 ${socket.id} \u89E6\u53D1\u4E86\u5168\u670D\u6570\u636E\u521D\u59CB\u5316`);
       rooms.clear();
       try {
         const db2 = getDB();
         await db2.run("DELETE FROM rooms");
+        console.log("[Admin] SQLite rooms \u8868\u5DF2\u6E05\u7A7A");
       } catch (e) {
+        console.error("[Admin] SQLite \u6E05\u7A7A\u5931\u8D25:", e);
       }
       io.to("admin_global").emit("adminRoomsUpdate", []);
-      io.emit("roomUpdate", null);
+      io.emit("kicked");
+      io.disconnectSockets(true);
     });
     socket.on("adminCreateRoom", (config = {}) => {
       const roomId = Math.floor(1e5 + Math.random() * 899999).toString();

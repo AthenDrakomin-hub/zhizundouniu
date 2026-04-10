@@ -343,6 +343,7 @@ export default function App() {
   const [betAnimations, setBetAnimations] = useState<{ id: string, from: string, amount: number }[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(15);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (room?.status === 'finished') {
@@ -831,23 +832,35 @@ export default function App() {
       )}
 
       {/* Quick Chat Panel */}
-      <div className="absolute bottom-4 left-4 z-40 pointer-events-auto group">
-        <div className="w-12 h-12 bg-blue-600/40 backdrop-blur-md rounded-full flex items-center justify-center border border-blue-400/50 shadow-lg cursor-pointer hover:bg-blue-600 transition-colors">
-          <Volume2 className="w-6 h-6 text-white" />
+      <div className="absolute bottom-4 left-4 z-40 pointer-events-auto">
+        <div 
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="w-12 h-12 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-lg cursor-pointer hover:bg-black/80 transition-colors"
+        >
+          <MessageSquare className="w-6 h-6 text-white" />
         </div>
-        
-        <div className="absolute bottom-full left-0 mb-4 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 p-3 flex-col gap-2 w-48 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all pointer-events-none group-hover:pointer-events-auto flex origin-bottom-left shadow-2xl">
-          <div className="text-[10px] font-bold text-yellow-500 mb-1">经典快捷语</div>
-          {quickMessages.map((msg, i) => (
-            <button 
-              key={i}
-              onClick={() => handleSendChat(msg)}
-              className="text-left text-xs text-white/90 hover:text-black hover:bg-yellow-400 px-3 py-2 rounded-xl transition-all truncate font-bold"
+
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              className="absolute bottom-[calc(100%+12px)] left-0 bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-yellow-500/30 p-3 flex flex-col gap-2 w-56 shadow-[0_0_30px_rgba(0,0,0,0.8)] origin-bottom-left"
             >
-              {msg}
-            </button>
-          ))}
-        </div>
+              <div className="text-xs font-black text-yellow-500 mb-1 px-1 tracking-widest border-b border-white/10 pb-2">经典快捷语</div>
+              {quickMessages.map((msg, i) => (
+                <button
+                  key={i}
+                  onClick={() => { handleSendChat(msg); setIsChatOpen(false); }}
+                  className="text-left text-sm text-white/90 hover:text-black hover:bg-yellow-400 px-3 py-2.5 rounded-xl transition-all font-bold truncate"
+                >
+                  {msg}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {room && currentPlayer?.isHost && room.players.length >= 2 && room.status === 'waiting' && (
@@ -1025,23 +1038,25 @@ export default function App() {
 
           <AnimatePresence mode="wait">
             {room?.status === 'waiting' && (
-              <motion.div 
+              <motion.div
                 key="waiting"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="bg-black/40 backdrop-blur-2xl p-10 rounded-[3rem] border border-white/10 shadow-2xl w-full max-w-md flex flex-col items-center gap-6"
+                className="bg-slate-950/95 p-10 rounded-[3rem] border-2 border-yellow-500/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] w-full max-w-md flex flex-col items-center gap-6 relative overflow-hidden"
               >
-                <div className="text-center">
-                  <h2 className="text-4xl font-black mb-2 text-[#D4AF37] drop-shadow-lg">等待开局</h2>
-                  <p className="text-slate-300 font-medium">满2人即可开始对决</p>
-                </div>
+                <div className="absolute inset-0 pointer-events-none bg-[url('/images/ui/youxibeijing.png')] bg-cover opacity-10 mix-blend-overlay" />
                 
-                <div className="flex flex-col gap-4 w-full max-w-xs">
+                <div className="text-center relative z-10">
+                  <h2 className="text-4xl font-black mb-2 text-yellow-500 drop-shadow-lg">等待开局</h2>
+                  <p className="text-slate-300 font-medium tracking-widest">满2人即可开始对决</p>
+                </div>
+
+                <div className="flex flex-col gap-4 w-full max-w-xs relative z-10">
                   {!currentPlayer?.ready ? (
                     <button
                       onClick={handleReady}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg border border-blue-400/50"
                     >
                       准备开始
                     </button>
@@ -1081,20 +1096,22 @@ export default function App() {
           </motion.div>
         </div>
       ) : (
-                    <div className="bg-blue-600/20 border-2 border-blue-500 text-blue-400 py-4 rounded-2xl font-black flex items-center justify-center gap-3">
-                      <CheckCircle2 className="w-6 h-6" />
-                      已准备，等待中
-                    </div>
+                    <button
+                      disabled
+                      className="bg-slate-800/80 text-blue-400 border border-blue-500/50 py-4 rounded-2xl font-black flex items-center justify-center gap-2 text-lg"
+                    >
+                      <CheckCircle2 className="w-5 h-5" /> 已准备，等待中
+                    </button>
                   )}
                   
                   {currentPlayer?.isHost && room.players.length >= 2 && (
-                      <button
-                        onClick={() => { playSound('click'); socket.emit('forceStart', { roomId: room.id, userId: user?.id }); }}
-                        className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg"
-                      >
-                        强制开始
-                      </button>
-                    )}
+                    <button
+                      onClick={() => { playSound('click'); socket.emit('forceStart', { roomId: room.id, userId: user?.id }); }}
+                      className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white py-4 rounded-2xl font-black shadow-2xl transition-all active:scale-95 text-lg border border-red-400/50"
+                    >
+                      强制开始
+                    </button>
+                  )}
                   
                 </div>
               </motion.div>
@@ -1214,11 +1231,11 @@ export default function App() {
             )}
 
             {room?.status === 'finished' && (
-              <motion.div 
+              <motion.div
                 key="finished"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-black/60 backdrop-blur-2xl p-10 rounded-[3rem] border-2 border-yellow-500/30 shadow-[0_0_100px_rgba(234,179,8,0.2)] text-center max-w-md w-full"
+                className="bg-slate-950/95 backdrop-blur-2xl p-10 rounded-[3rem] border-2 border-yellow-500/30 shadow-[0_0_100px_rgba(234,179,8,0.2)] text-center max-w-md w-full"
               >
                 <div className="flex items-center justify-center mx-auto mb-6 relative w-40 h-24">
                   <img src="/images/niuniu/win.png" alt="win" className="w-full h-full object-contain absolute z-10 drop-shadow-[0_10px_20px_rgba(255,215,0,0.5)]" />
@@ -1264,12 +1281,12 @@ export default function App() {
               </motion.div>
             )}
             {room?.status === 'game_over' && (
-              <motion.div 
+              <motion.div
                 key="game_over"
                 id="summary-board"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-black/60 backdrop-blur-2xl border-4 border-yellow-500 p-10 rounded-[3rem] shadow-[0_0_100px_rgba(234,179,8,0.4)] text-center max-w-3xl w-full z-[60] relative overflow-hidden"
+                className="bg-slate-950/95 backdrop-blur-2xl border-4 border-yellow-500 p-10 rounded-[3rem] shadow-[0_0_100px_rgba(234,179,8,0.4)] text-center max-w-3xl w-full z-[60] relative overflow-hidden"
               >
                 {/* Anti-counterfeit Watermark */}
                 <div className="absolute inset-0 pointer-events-none opacity-[0.05] rotate-[-15deg] flex flex-wrap gap-x-32 gap-y-24 items-center justify-center scale-150">
