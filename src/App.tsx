@@ -575,23 +575,31 @@ export default function App() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-[360px] flex flex-col items-center"
+          className="relative z-10 w-full max-w-[380px] flex flex-col items-center mt-12"
         >
-          {/* Logo (No dark background, pure transparent with glow) */}
-          <div className="relative mb-6 -mt-10">
-            <img src="/images/ui/logo3.png" alt="Logo" loading="lazy" className="w-48 h-48 object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.8)] mix-blend-screen" />
-          </div>
           
           {/* Solid Premium Card (No transparency) */}
-          <div className="w-full bg-[#FDFBF7] rounded-[2rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.8)] border-4 border-[#E8DCC4] flex flex-col items-center relative overflow-hidden">
+          <div className="w-full bg-[#FDFBF7] rounded-[2rem] pt-16 pb-8 px-8 shadow-[0_20px_60px_rgba(0,0,0,0.8)] border-4 border-[#E8DCC4] flex flex-col items-center relative overflow-visible mt-16">
+            
             {/* Inner decorative border */}
             <div className="absolute inset-2 border border-[#D4AF37]/30 rounded-[1.5rem] pointer-events-none" />
-            
-            <h1 className="text-2xl font-black text-center text-[#8B0000] mb-8 tracking-widest drop-shadow-sm relative z-10">
-              至尊斗牛
-            </h1>
 
-            <form onSubmit={handleJoin} className="w-full flex flex-col gap-5 relative z-10">
+            {/* Overlapping Logo (Half outside, half inside) */}
+            <div className="absolute -top-[100px] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+              {/* Note: mix-blend-plus-lighter works well to remove the dark red background from the logo, 
+                  leaving mostly the golden bull and text visible against light/dark backgrounds */}
+              <img 
+                src="/images/ui/logo3.png" 
+                alt="Logo" 
+                loading="lazy" 
+                className="w-48 h-48 object-contain drop-shadow-[0_10px_20px_rgba(139,0,0,0.6)] mix-blend-darken" 
+                style={{
+                  filter: "contrast(1.2) brightness(1.1) drop-shadow(0 0 10px rgba(255,215,0,0.5))"
+                }}
+              />
+            </div>
+            
+            <form onSubmit={handleJoin} className="w-full flex flex-col gap-5 relative z-10 mt-4">
               {/* Name Input */}
               <div className="relative bg-[#4A4A4A] rounded-xl overflow-hidden flex items-center px-5 h-[60px] shadow-inner border-2 border-transparent focus-within:border-[#D4AF37] transition-colors">
                 <span className="text-[#D4AF37] font-bold shrink-0 whitespace-nowrap text-sm">大名</span>
