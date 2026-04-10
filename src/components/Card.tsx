@@ -152,18 +152,17 @@ export const Card = ({ card, index, hidden = false, className, isRubbing = false
       {/* Back */}
       <div 
         className={cn(
-          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl overflow-hidden border-2 border-yellow-500/50",
-          "bg-red-800",
+          "absolute inset-0 backface-hidden rounded-xl sm:rounded-2xl overflow-hidden border border-white/10",
           isFlipped && "opacity-0"
         )}
         style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
       >
-        <div className="absolute inset-0 opacity-20 bg-[url('/images/ui/bg.png')] bg-cover" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-8 h-12 border border-yellow-500/30 rounded flex items-center justify-center">
-            <div className="w-4 h-4 bg-yellow-500/50 rounded-full" />
-          </div>
-        </div>
+        <img 
+          src="/images/cards/card-back.png" 
+          alt="Card Back"
+          className="w-full h-full object-cover"
+          draggable="false"
+        />
       </div>
     </motion.div>
   );
