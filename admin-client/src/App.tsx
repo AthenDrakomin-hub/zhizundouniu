@@ -92,7 +92,7 @@ export default function App() {
       <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden">
         {/* Immersive Background Image */}
         <div className="absolute inset-0 z-[-10]">
-          <img src="/images/ui/hou.png" alt="background" className="w-full h-full object-cover scale-105" />
+          <img src="/images/ui/hou.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/80" />
         </div>
         
@@ -100,36 +100,34 @@ export default function App() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-red-900/30 blur-[120px] rounded-full pointer-events-none z-[-5]" />
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-slate-900/40 blur-[100px] rounded-full pointer-events-none z-[-5]" />
 
-        <div className="relative z-10 w-full max-w-md">
-          {/* Glass Card */}
-          <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] relative overflow-hidden">
-            {/* Top Shine Accent */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+        <div className="relative z-10 w-full max-w-[360px]">
+          {/* Glass Card (Dark red tint like screenshot) */}
+          <div className="bg-[#2a0808]/80 backdrop-blur-2xl border border-red-500/20 p-8 rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] relative overflow-hidden">
             
-            <div className="flex flex-col items-center mb-10">
-              <div className="relative mb-6">
-                <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full" />
-                <div className="w-24 h-24 bg-black/50 border border-white/10 rounded-2xl flex items-center justify-center shadow-inner relative z-10 p-2">
-                  <img src="/images/ui/logo3.png" alt="Logo" className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+            <div className="flex flex-col items-center mb-8">
+              <div className="relative mb-4">
+                {/* Logo with rounded mask and red glow border */}
+                <div className="w-20 h-20 bg-black border border-red-500/50 rounded-2xl overflow-hidden flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.5)] relative z-10">
+                  <img src="/images/ui/logo3.png" alt="Logo" loading="lazy" className="w-full h-full object-cover" />
                 </div>
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-white mb-2">至尊控制台</h1>
-              <p className="text-slate-400 text-sm tracking-widest font-medium">SUPREME ADMIN CONSOLE</p>
+              <h1 className="text-2xl font-black tracking-tight text-white/90 mb-1">至尊控制台</h1>
+              <p className="text-white/40 text-[10px] tracking-[0.2em] font-medium uppercase">Supreme Admin Console</p>
             </div>
             
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold tracking-wider text-slate-500 uppercase px-1">安全认证秘钥</label>
+                <label className="text-[10px] font-bold tracking-widest text-white/50 uppercase px-1">安全认证秘钥</label>
                 <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
-                    <Key className="w-5 h-5" />
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-white/30 group-focus-within:text-red-400 transition-colors">
+                    <Key className="w-4 h-4" />
                   </div>
                   <input
                     type="password"
                     placeholder="请输入 admin123"
                     value={adminKey}
                     onChange={e => setAdminKey(e.target.value)}
-                    className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-lg font-mono tracking-widest text-white focus:border-emerald-500/50 focus:bg-slate-900 outline-none transition-all placeholder:text-slate-700 placeholder:tracking-normal"
+                    className="w-full bg-[#150505] border border-red-500/20 rounded-2xl py-4 pl-12 pr-4 text-sm font-mono tracking-widest text-white focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 outline-none transition-all placeholder:text-white/20 placeholder:tracking-normal shadow-inner"
                     required
                   />
                 </div>
@@ -137,7 +135,7 @@ export default function App() {
               
               <button 
                 type="submit" 
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 group mt-2"
+                className="w-full bg-[#10b981] hover:bg-[#059669] text-black font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 group mt-4"
               >
                 授权登入
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
