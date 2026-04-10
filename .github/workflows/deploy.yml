@@ -38,7 +38,9 @@ jobs:
               git clone https://github.com/AthenDrakomin-hub/zhizundouniu.git $DEPLOY_DIR
             fi
             cd $DEPLOY_DIR
-            git pull origin main
+            # 使用 reset --hard 和 fetch 来防止本地修改导致 git pull 冲突
+            git fetch origin main
+            git reset --hard origin/main
 
             # 3. 安装依赖并构建
             # 【重要保留】：保留了解决 npm Tailwind Bug 的清除指令和 --legacy-peer-deps
@@ -53,9 +55,9 @@ jobs:
             sudo npm install pm2 tsx -g
 
             # 5. 重启项目 (使用 --update-env 刷新环境变量)
-            # 【重要修改】：项目入口文件是 server.ts，不是 index.js，需要用 tsx 运行
+            # 【重要修改】：使用 npx tsx server.ts 保证从本地 node_modules 寻找环境
             pm2 delete supreme-bull || true
-            pm2 start tsx --name "supreme-bull" --update-env -- server.ts
+            pm2 start "npx tsx server.ts" --name "supreme-bull" --update-env
             pm2 save
             
             # 6. 重启 Nginx 确保通道顺畅
