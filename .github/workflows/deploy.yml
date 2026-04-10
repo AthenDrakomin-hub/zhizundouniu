@@ -36,10 +36,34 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || '22' }}
         script: |
-          cd /path/to/your/deployment/dir
-          # Pull latest code or copy files (assuming files are rsync'd or git pulled)
-          # Example using git pull:
-          git pull origin main
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          
+          # If node/npm/pm2 are not installed, install them (assuming Ubuntu/Debian)
+          if ! command -v node &> /dev/null; then
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm install 18
+            nvm use 18
+            nvm alias default 18
+          fi
+          
+          if ! command -v pm2 &> /dev/null; then
+            npm install -g pm2 ts-node typescript
+          fi
+
+          DEPLOY_DIR="/var/www/zhizundouniu"
+          
+          # Ensure directory exists and clone/pull
+          if [ ! -d "$DEPLOY_DIR/.git" ]; then
+            sudo mkdir -p $DEPLOY_DIR
+            sudo chown -R $USER:$USER $DEPLOY_DIR
+            git clone https://github.com/AthenDrakomin-hub/zhizundouniu.git $DEPLOY_DIR
+            cd $DEPLOY_DIR
+          else
+            cd $DEPLOY_DIR
+            git pull origin main
+          fi
           
           # Install dependencies
           npm install --legacy-peer-deps
@@ -49,5 +73,6 @@ jobs:
           npm run build
           cd admin-client && npm run build && cd ..
           
-          # Restart the service (assuming PM2 is used)
+          # Restart the service
           pm2 restart zhizundouniu || pm2 start ts-node --name "zhizundouniu" -- server.ts
+          pm2 save
