@@ -92,7 +92,7 @@ export default function App() {
       <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden">
         {/* Immersive Background Image */}
         <div className="absolute inset-0 z-[-10]">
-          <img src="<images_data_path>" alt="background" className="w-full h-full object-cover scale-105" />
+          <div className="w-full h-full bg-slate-900" /> {/* Temporary fallback until user uploads image */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/80" />
         </div>
         
