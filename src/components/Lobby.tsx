@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Home, Gamepad2, User, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X, MessageSquare, Settings, ArrowRight, Copy, MessageCircle as WechatIcon, Crown, Swords, Coins, Hexagon, Sprout, Flame } from 'lucide-react';
+import { Home, Gamepad2, User, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X, MessageSquare, Settings, ArrowRight, Copy, MessageCircle as WechatIcon, Crown, Swords, Coins, Hexagon, Sprout, Flame, Volume2, HelpCircle, Users, Key } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { socket } from '../App';
 
