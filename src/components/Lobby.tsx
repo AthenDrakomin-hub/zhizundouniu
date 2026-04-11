@@ -18,6 +18,23 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   const [toastMsg, setToastMsg] = useState('');
   const [openPanel, setOpenPanel] = useState('');
   const [payMethod, setPayMethod] = useState<'alipay' | 'usdt'>('alipay');
+  
+  const [marqueeIndex, setMarqueeIndex] = useState(0);
+  const marqueeMessages = [
+    '恭喜玩家 游客8922 在斗牛中赢取 5000 金币！',
+    '恭喜玩家 游客1033 在炸金花中赢取 3200 金币！',
+    '欢迎新玩家 游客9981 加入游戏！',
+    '系统公告：充值请认准官方渠道，谨防上当受骗！',
+    '恭喜玩家 游客5521 开启至尊房卡，成功组局！'
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMarqueeIndex((prev) => (prev + 1) % marqueeMessages.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [cards, setCards] = useState(parseInt(localStorage.getItem('player_cards') || '0', 10));
   const [systemConfig, setSystemConfig] = useState({
     alipayQrUrl: '/images/ui/alipay_qr.png',
@@ -62,7 +79,37 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
 
   const renderHall = () => (
     <div className="flex-1 overflow-y-auto pb-24 pt-4 px-4">
+      
+      {/* 顶部跑马灯与规则按钮 */}
+      <div className="flex items-center gap-2 mb-4 bg-black/40 rounded-full p-1 border border-white/10 shadow-[0_5px_15px_rgba(0,0,0,0.5)] mx-1">
+        <div className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] rounded-full p-1.5 flex items-center justify-center shadow-md z-10">
+          <Volume2 className="w-4 h-4 text-black" />
+        </div>
+        <div className="flex-1 overflow-hidden h-6 relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={marqueeIndex}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 flex items-center text-xs text-[#D4AF37] font-medium whitespace-nowrap"
+            >
+              {marqueeMessages[marqueeIndex]}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        <button 
+          onClick={() => setOpenPanel('rules')}
+          className="flex items-center gap-1 bg-white/10 hover:bg-[#D4AF37] hover:text-black px-3 py-1.5 rounded-full text-xs text-white/80 transition-colors mr-1 font-bold"
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          <span>玩法规则</span>
+        </button>
+      </div>
+
       {/* Grid of games */}
+
       <div className="grid grid-cols-2 gap-4">
         {[
           { 
@@ -140,6 +187,10 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
               <h3 className="text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
                 {game.name}
               </h3>
+              <div className="flex items-center gap-1 mt-1 opacity-70">
+                <Users className="w-3 h-3 text-green-400" />
+                <span className="text-[10px] font-mono text-green-400">{Math.floor(Math.random() * 500) + 100} 人在线</span>
+              </div>
               <p className="text-[10px] font-bold text-white/80 tracking-widest mt-0.5 uppercase opacity-80 drop-shadow-md">
                 {game.desc}
               </p>
@@ -167,32 +218,63 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   );
 
   const renderRoom = () => (
-    <div className="flex-1 flex flex-col pt-4 px-4 pb-24 relative">
-      <div className="flex justify-between items-center z-10 mb-4">
-        <button onClick={() => showToast('已刷新历史战绩')} className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
-          战绩刷新 <RefreshCw className="w-4 h-4 text-[#D4AF37]" />
-        </button>
-      </div>
-      
-      <div className="flex-1 flex items-center justify-center relative z-10">
-        <div className="text-center flex flex-col items-center gap-4">
-          <div className="w-20 h-20 bg-black/40 rounded-full flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-            <LayoutGrid className="w-10 h-10 text-white/20" />
-          </div>
-          <h2 className="text-[#FFD700] text-xl font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest">
-            暂无进行中的房间
-          </h2>
-          <p className="text-white/50 text-sm font-medium tracking-wider">
-            请前往「大厅」选择游戏并输入房间号创建对局
-          </p>
-          <button 
-            onClick={() => setActiveTab('hall')}
-            className="mt-4 bg-gradient-to-r from-[#D4AF37] to-[#F2C94C] text-black px-8 py-3 rounded-full font-black shadow-[0_5px_15px_rgba(212,175,55,0.4)] active:scale-95 transition-all"
-          >
-            前往大厅创建房间
-          </button>
+    <div className="flex-1 flex flex-col pt-8 px-6 pb-24 relative overflow-y-auto">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/50 mb-4 shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+          <Key className="w-8 h-8 text-[#D4AF37]" />
         </div>
+        <h2 className="text-2xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest mb-2">加入/创建对局</h2>
+        <p className="text-white/50 text-xs font-medium tracking-wider">房间私密，请输入6位数字房间号</p>
       </div>
+
+      {/* 房间号显示区 */}
+      <div className="flex justify-center gap-2 sm:gap-3 mb-10">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div 
+            key={i} 
+            className={cn(
+              "w-10 sm:w-12 h-12 sm:h-14 rounded-xl flex items-center justify-center text-2xl font-black shadow-[0_5px_15px_rgba(0,0,0,0.5)] transition-all",
+              roomId.length === i ? "bg-gradient-to-b from-[#D4AF37]/20 to-transparent border-2 border-[#D4AF37] scale-110 shadow-[0_0_15px_rgba(212,175,55,0.5)]" 
+              : roomId.length > i ? "bg-gradient-to-b from-[#D4AF37] to-[#B8860B] text-black border border-[#FFD700]"
+              : "bg-black/40 border border-white/10 text-white/20"
+            )}
+          >
+            {roomId[i] || ''}
+          </div>
+        ))}
+      </div>
+
+      {/* 数字小键盘 */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-[280px] mx-auto w-full">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, '清空', 0, '删除'].map((key, idx) => (
+          <button
+            key={idx}
+            onClick={(e) => {
+              e.preventDefault();
+              if (key === '清空') setRoomId('');
+              else if (key === '删除') setRoomId(roomId.slice(0, -1));
+              else if (roomId.length < 6) setRoomId(roomId + String(key));
+            }}
+            className={cn(
+              "h-12 sm:h-14 rounded-2xl font-black text-xl flex items-center justify-center active:scale-95 transition-all shadow-[0_5px_10px_rgba(0,0,0,0.3)]",
+              typeof key === 'number' 
+                ? "bg-gradient-to-b from-[#2A2D35] to-[#1C1F26] text-white border border-white/10 hover:border-[#D4AF37]/50 hover:text-[#D4AF37]" 
+                : "bg-black/30 text-white/50 text-base border border-white/5 hover:text-white"
+            )}
+          >
+            {key}
+          </button>
+        ))}
+      </div>
+
+      {/* 确认按钮 */}
+      <button 
+        onClick={(e) => handleSubmit(e as any)}
+        disabled={roomId.length < 6}
+        className="mt-8 mx-auto max-w-[280px] w-full bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black py-4 rounded-2xl font-black text-lg shadow-[0_5px_15px_rgba(212,175,55,0.4)] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        进入房间 <ArrowRight className="w-5 h-5" />
+      </button>
     </div>
   );
 
@@ -246,6 +328,30 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
 
   const renderPanelContent = () => {
     switch (openPanel) {
+      case 'rules': return (
+        <div className="flex flex-col gap-4 text-white/80 text-sm leading-relaxed max-h-[60vh] overflow-y-auto px-2 py-4">
+          <div className="bg-black/40 p-4 rounded-xl border border-white/10">
+            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Key className="w-5 h-5"/> 房间与房卡规则</h3>
+            <p className="mb-2">1. 平台主打<span className="text-white font-bold">私密好友局</span>，不支持随机匹配。玩家需要知道精确的6位数字房号才能上桌。</p>
+            <p>2. 如果输入的房号不存在，系统会为您<span className="text-[#D4AF37] font-bold">自动创建该房间</span>，创建房间需消耗 <span className="text-red-400 font-bold">1 张至尊房卡</span>。</p>
+          </div>
+          
+          <div className="bg-black/40 p-4 rounded-xl border border-white/10">
+            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Flame className="w-5 h-5"/> 斗牛核心玩法</h3>
+            <p className="mb-2">1. 每位玩家发5张牌，找出3张牌凑成10的整数倍（J、Q、K均计为10）。</p>
+            <p className="mb-2">2. 剩下2张牌相加取个位数即为“牛数”。例如剩7和8，相加15，即为“牛五”。</p>
+            <p className="mb-2">3. <span className="text-yellow-400 font-bold">牛牛：</span>3张牌凑成10的倍数，剩下2张相加也是10的倍数（最大）。</p>
+            <p>4. <span className="text-red-400 font-bold">五花牛：</span>5张牌全部是J、Q、K，倍率最高！</p>
+          </div>
+
+          <div className="bg-black/40 p-4 rounded-xl border border-white/10">
+            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Crown className="w-5 h-5"/> 庄家与倍率</h3>
+            <p className="mb-2">1. 游戏支持<span className="text-white font-bold">明牌抢庄</span>，看4张牌后决定是否抢庄，倍数最高者成为庄家。</p>
+            <p>2. 若多人抢庄倍数相同，系统将通过<span className="text-[#D4AF37] font-bold">掷骰子</span>随机产生庄家，保证绝对公平。</p>
+          </div>
+          <button onClick={() => setOpenPanel('')} className="mt-2 w-full py-3 bg-white/10 rounded-xl font-bold text-white hover:bg-white/20 transition-colors">我知道了</button>
+        </div>
+      );
       case 'store': return (
         <div className="flex flex-col items-center gap-4 py-2 w-full max-w-sm mx-auto">
           {/* 房卡商品信息 */}
