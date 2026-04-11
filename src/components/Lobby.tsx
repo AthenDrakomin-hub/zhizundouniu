@@ -14,6 +14,15 @@ interface LobbyProps {
 export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: LobbyProps) {
   const [activeTab, setActiveTab] = useState<'hall' | 'room' | 'mine'>('hall');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [openPanel, setOpenPanel] = useState('');
+
+  const [avatar, setAvatar] = useState(localStorage.getItem('player_avatar') || '/images/ui/head_boy.png');
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 2000);
+  };
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -71,15 +80,18 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   const renderRoom = () => (
     <div className="flex-1 flex flex-col pt-4 px-4 pb-24 relative">
       <div className="flex justify-between items-center z-10 mb-4">
-        <button className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
+        <button onClick={() => showToast('暂无其他公会可切换')} className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
           <Search className="w-4 h-4 text-[#D4AF37]" /> 切换
         </button>
-        <button className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
+        <button onClick={() => showToast('已刷新')} className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
           刷新 <RefreshCw className="w-4 h-4 text-[#D4AF37]" />
         </button>
       </div>
       <div className="absolute top-16 right-4 z-10">
-        <button className="bg-black/50 backdrop-blur-md text-[#D4AF37] border border-[#D4AF37]/50 text-xs px-3 py-1.5 rounded-full shadow-lg active:scale-95">
+        <button onClick={() => {
+          navigator.clipboard.writeText(window.location.href);
+          showToast('链接已复制到剪贴板');
+        }} className="bg-black/50 backdrop-blur-md text-[#D4AF37] border border-[#D4AF37]/50 text-xs px-3 py-1.5 rounded-full shadow-lg active:scale-95">
           复制链接
         </button>
       </div>
@@ -99,7 +111,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
       <div className="bg-gradient-to-r from-[#3C1B22] to-[#5C2D38] rounded-2xl p-4 border border-[#D4AF37]/50 shadow-[0_10px_20px_rgba(0,0,0,0.5)] flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl border-2 border-[#D4AF37] p-0.5 bg-black/50 shadow-inner">
-            <img src={localStorage.getItem('player_avatar') || '/images/ui/head_boy.png'} alt="avatar" className="w-full h-full rounded-xl object-cover" />
+            <img src={avatar} alt="avatar" className="w-full h-full rounded-xl object-cover" />
           </div>
           <div>
             <h2 className="text-xl font-black text-white drop-shadow-md">{tempName}</h2>
@@ -107,24 +119,37 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <button className="bg-gradient-to-r from-[#4A2F2F] to-[#2A1F1F] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
+          <button onClick={() => {
+            navigator.clipboard.writeText(localStorage.getItem('player_id') || '');
+            showToast('ID已复制到剪贴板');
+          }} className="bg-gradient-to-r from-[#4A2F2F] to-[#2A1F1F] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
             <Copy className="w-3 h-3" /> 复制 ID
+          </button>
+          <button onClick={() => {
+            const current = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
+            const next = current === '/images/ui/head_boy.png' ? '/images/ui/head_girl.png' : '/images/ui/head_boy.png';
+            localStorage.setItem('player_avatar', next);
+            setAvatar(next);
+            showToast('头像已更换');
+          }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
+            修改头像
           </button>
           <button onClick={() => {
             const newName = prompt('请输入新的玩家昵称：', tempName);
             if (newName && newName.trim()) {
               localStorage.setItem('player_name', newName.trim());
               setTempName(newName.trim());
+              showToast('修改资料成功');
             }
-          }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
-            修改资料
+          }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1 mt-1">
+            修改昵称
           </button>
         </div>
       </div>
 
       {/* Settings List */}
       <div className="flex flex-col gap-3 mt-2">
-        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+        <div onClick={() => setOpenPanel('chat')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3 text-white">
             <MessageSquare className="w-5 h-5 text-[#87CEEB]" />
             <span className="font-bold tracking-widest">聊天室</span>
@@ -140,15 +165,15 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" onChange={(e) => {
               if(e.target.checked) {
-              window.open(window.location.origin.replace('app.', 'admin.'), '_blank');
-              setTimeout(() => e.target.checked = false, 500); // reset visually
-            }
+                window.open(window.location.origin.replace('app.', 'admin.'), '_blank');
+                setTimeout(() => e.target.checked = false, 500); // reset visually
+              }
             }} />
             <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F2C94C]"></div>
           </label>
         </div>
 
-        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+        <div onClick={() => setOpenPanel('phone')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3 text-white">
             <Smartphone className="w-5 h-5 text-[#98FB98]" />
             <span className="font-bold tracking-widest">修改手机</span>
@@ -156,7 +181,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           <ArrowRight className="w-4 h-4 text-white/30" />
         </div>
 
-        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+        <div onClick={() => setOpenPanel('key')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3 text-white">
             <Shield className="w-5 h-5 text-[#87CEEB]" />
             <span className="font-bold tracking-widest">密钥设置</span>
@@ -164,7 +189,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           <ArrowRight className="w-4 h-4 text-white/30" />
         </div>
 
-        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
+        <div onClick={() => setOpenPanel('cards')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3 text-white">
             <Package className="w-5 h-5 text-[#FFD700]" />
             <span className="font-bold tracking-widest">房卡包</span>
@@ -177,6 +202,51 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
       </div>
     </div>
   );
+
+  const renderPanelContent = () => {
+    switch (openPanel) {
+      case 'store': return <div className="text-center text-white/70 py-4">商城系统暂未开放，请联系上级代理充值。</div>;
+      case 'chat': return <div className="text-center text-white/70 py-4">全服聊天室建设中，敬请期待。</div>;
+      case 'phone': return (
+         <div className="flex flex-col gap-4">
+           <input type="text" placeholder="请输入11位手机号" className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#D4AF37]" id="phoneInput" defaultValue={localStorage.getItem('player_phone') || ''} />
+           <button onClick={() => {
+              const val = (document.getElementById('phoneInput') as HTMLInputElement).value;
+              localStorage.setItem('player_phone', val);
+              showToast('手机号已绑定');
+              setOpenPanel('');
+           }} className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-black py-3 rounded-xl active:scale-[0.98] transition-transform shadow-[0_5px_15px_rgba(212,175,55,0.4)]">绑定手机</button>
+         </div>
+      );
+      case 'key': return (
+         <div className="flex flex-col gap-4">
+           <input type="password" placeholder="请输入6位安全密钥" className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#D4AF37]" id="keyInput" defaultValue={localStorage.getItem('player_key') || ''} />
+           <button onClick={() => {
+              const val = (document.getElementById('keyInput') as HTMLInputElement).value;
+              localStorage.setItem('player_key', val);
+              showToast('安全密钥已保存');
+              setOpenPanel('');
+           }} className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-black py-3 rounded-xl active:scale-[0.98] transition-transform shadow-[0_5px_15px_rgba(212,175,55,0.4)]">保存设置</button>
+         </div>
+      );
+      case 'cards': return (
+        <div className="text-center flex flex-col gap-4 items-center py-4">
+          <Package className="w-12 h-12 text-[#FFD700] mx-auto opacity-80" />
+          <div className="text-white/80">当前剩余 <span className="text-[#FFD700] font-black text-2xl px-2">0</span> 张房卡</div>
+          <button onClick={() => setOpenPanel('store')} className="bg-white/10 border border-white/20 text-white font-bold py-2 px-8 rounded-full text-sm hover:bg-white/20 active:scale-95 transition-all">前往获取</button>
+        </div>
+      );
+      default: return null;
+    }
+  };
+
+  const panelTitles: Record<string, string> = {
+    store: '房卡商城',
+    chat: '全服聊天',
+    phone: '绑定手机',
+    key: '安全密钥',
+    cards: '我的房卡'
+  };
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] text-white flex flex-col relative overflow-hidden">
@@ -201,7 +271,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-black px-3 py-1.5 rounded-full shadow-lg">
+          <button onClick={() => setOpenPanel('store')} className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-black px-3 py-1.5 rounded-full shadow-lg">
             商城
           </button>
           <img src="/images/ui/logo3.png" alt="logo" className="w-10 h-10 object-contain drop-shadow-lg mix-blend-screen" />
@@ -296,6 +366,52 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
                   加入 / 创建房间
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-black/80 backdrop-blur-md border border-[#D4AF37]/50 text-white px-6 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.8)] font-bold text-sm"
+          >
+            {toastMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Generic Panel Modal */}
+      <AnimatePresence>
+        {openPanel && !['store', 'chat', 'phone', 'key', 'cards'].includes(openPanel) === false && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpenPanel('')}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-gradient-to-b from-[#1C1F26] to-[#0D1017] border border-[#D4AF37]/30 rounded-3xl w-full max-w-sm overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+            >
+              <div className="bg-black/40 border-b border-white/5 p-4 flex justify-between items-center relative">
+                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent" />
+                <h2 className="text-lg font-black text-white tracking-widest ml-2">{panelTitles[openPanel]}</h2>
+                <button onClick={() => setOpenPanel('')} className="p-1 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                {renderPanelContent()}
+              </div>
             </motion.div>
           </div>
         )}
