@@ -169,26 +169,28 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   const renderRoom = () => (
     <div className="flex-1 flex flex-col pt-4 px-4 pb-24 relative">
       <div className="flex justify-between items-center z-10 mb-4">
-        <button onClick={() => showToast('暂无其他公会可切换')} className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
-          <Search className="w-4 h-4 text-[#D4AF37]" /> 切换
-        </button>
-        <button onClick={() => showToast('已刷新')} className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
-          刷新 <RefreshCw className="w-4 h-4 text-[#D4AF37]" />
+        <button onClick={() => showToast('已刷新历史战绩')} className="flex items-center gap-2 bg-gradient-to-b from-[#FFF] to-[#E0E0E0] text-[#333] font-bold px-4 py-1.5 rounded-lg border border-[#D4AF37] shadow-md active:scale-95 transition-transform">
+          战绩刷新 <RefreshCw className="w-4 h-4 text-[#D4AF37]" />
         </button>
       </div>
-      <div className="absolute top-16 right-4 z-10">
-        <button onClick={() => {
-          navigator.clipboard.writeText(window.location.href);
-          showToast('链接已复制到剪贴板');
-        }} className="bg-black/50 backdrop-blur-md text-[#D4AF37] border border-[#D4AF37]/50 text-xs px-3 py-1.5 rounded-full shadow-lg active:scale-95">
-          复制链接
-        </button>
-      </div>
+      
       <div className="flex-1 flex items-center justify-center relative z-10">
-        <div className="text-center">
-          <h2 className="text-[#FFD700] text-xl font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest bg-black/40 px-6 py-3 rounded-full border border-white/10 backdrop-blur-sm">
-            加入公会后，等待会长开房
+        <div className="text-center flex flex-col items-center gap-4">
+          <div className="w-20 h-20 bg-black/40 rounded-full flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+            <LayoutGrid className="w-10 h-10 text-white/20" />
+          </div>
+          <h2 className="text-[#FFD700] text-xl font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest">
+            暂无进行中的房间
           </h2>
+          <p className="text-white/50 text-sm font-medium tracking-wider">
+            请前往「大厅」选择游戏并输入房间号创建对局
+          </p>
+          <button 
+            onClick={() => setActiveTab('hall')}
+            className="mt-4 bg-gradient-to-r from-[#D4AF37] to-[#F2C94C] text-black px-8 py-3 rounded-full font-black shadow-[0_5px_15px_rgba(212,175,55,0.4)] active:scale-95 transition-all"
+          >
+            前往大厅创建房间
+          </button>
         </div>
       </div>
     </div>
@@ -226,55 +228,15 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
         </div>
       </div>
 
-      {/* Settings List */}
-      <div className="flex flex-col gap-3 mt-2">
-        <div onClick={() => setOpenPanel('chat')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-3 text-white">
-            <MessageSquare className="w-5 h-5 text-[#87CEEB]" />
-            <span className="font-bold tracking-widest">聊天室</span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-white/30" />
-        </div>
-
-        <div className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 shadow-lg">
-          <div className="flex items-center gap-3 text-white">
-            <Settings className="w-5 h-5 text-[#FFD700]" />
-            <span className="font-bold tracking-widest">管理功能</span>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" onChange={(e) => {
-              if(e.target.checked) {
-                window.open(window.location.origin.replace('app.', 'admin.'), '_blank');
-                setTimeout(() => e.target.checked = false, 500); // reset visually
-              }
-            }} />
-            <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F2C94C]"></div>
-          </label>
-        </div>
-
-        <div onClick={() => setOpenPanel('phone')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-3 text-white">
-            <Smartphone className="w-5 h-5 text-[#98FB98]" />
-            <span className="font-bold tracking-widest">修改手机</span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-white/30" />
-        </div>
-
-        <div onClick={() => setOpenPanel('key')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-3 text-white">
-            <Shield className="w-5 h-5 text-[#87CEEB]" />
-            <span className="font-bold tracking-widest">密钥设置</span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-white/30" />
-        </div>
-
+      {/* Settings Grid */}
+      <div className="flex flex-col gap-3 mt-4">
         <div onClick={() => setOpenPanel('cards')} className="bg-gradient-to-r from-[#5C2D38] to-[#4A1A24] rounded-xl border border-white/10 flex items-center justify-between p-4 cursor-pointer shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3 text-white">
             <Package className="w-5 h-5 text-[#FFD700]" />
-            <span className="font-bold tracking-widest">房卡包</span>
+            <span className="font-bold tracking-widest">我的房卡包</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-white/70 font-bold">剩余{cards}张</span>
+            <span className="text-sm text-[#D4AF37] font-bold tracking-widest">剩余 {cards} 张</span>
             <ArrowRight className="w-4 h-4 text-white/30" />
           </div>
         </div>
