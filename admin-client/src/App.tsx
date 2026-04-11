@@ -31,8 +31,8 @@ export default function App() {
   // System Config State
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [systemConfig, setSystemConfig] = useState({
-    alipayQrUrl: '/images/ui/alipay_qr.png',
-    usdtQrUrl: '/images/ui/usdt_qr.png',
+    alipayQrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=alipay_qr_placeholder&color=000000&bgcolor=ffffff',
+    usdtQrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=usdt_qr_placeholder&color=000000&bgcolor=ffffff',
     usdtAddress: 'T_YOUR_USDT_ADDRESS_HERE'
   });
 
