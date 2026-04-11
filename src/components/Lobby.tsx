@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Home, Gamepad2, User, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X, MessageSquare, Settings, ArrowRight } from 'lucide-react';
+import { Home, Gamepad2, User, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X, MessageSquare, Settings, ArrowRight, Copy, MessageCircle as WechatIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LobbyProps {
@@ -102,13 +102,17 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
             <img src="/images/ui/head_boy.png" alt="avatar" className="w-full h-full rounded-xl object-cover" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white drop-shadow-md">{tempName || '默认玩家'}</h2>
-            <p className="text-xs text-[#D4AF37] font-medium mt-1 tracking-widest">ID: {Math.floor(Math.random() * 9000000) + 1000000}</p>
+            <h2 className="text-xl font-black text-white drop-shadow-md">{tempName}</h2>
+            <p className="text-xs text-[#D4AF37] font-medium mt-1 tracking-widest">ID: {localStorage.getItem('player_id')?.substring(0,6).toUpperCase() || '123456'}</p>
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <button className="bg-gradient-to-r from-[#4A2F2F] to-[#2A1F1F] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95">复制 ID</button>
-          <button className="bg-gradient-to-r from-[#8B0000] to-[#4B0000] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95">修改头像</button>
+          <button className="bg-gradient-to-r from-[#4A2F2F] to-[#2A1F1F] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
+            <Copy className="w-3 h-3" /> 复制 ID
+          </button>
+          <button className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
+            <WechatIcon className="w-3 h-3" /> 微信登录
+          </button>
         </div>
       </div>
 
@@ -238,63 +242,50 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={handleCloseModal}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
-              animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
-              className="relative w-full max-w-sm bg-slate-900/90 backdrop-blur-xl rounded-[2rem] border border-white/10 shadow-2xl p-6"
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-gradient-to-b from-[#1C1F26] to-[#0D1017] border border-[#D4AF37]/30 rounded-3xl w-full max-w-sm overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
             >
-              <button 
-                onClick={handleCloseModal}
-                className="absolute top-4 right-4 text-white/50 hover:text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-black text-white mb-2">加入/创建对局</h2>
-                <p className="text-sm text-white/50">输入您的名字和房号</p>
+              {/* Header */}
+              <div className="bg-black/40 border-b border-white/5 p-4 flex justify-between items-center relative">
+                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent" />
+                <h2 className="text-lg font-black text-white tracking-widest ml-2">加入/创建对局</h2>
+                <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="relative bg-black/50 rounded-xl overflow-hidden flex items-center px-4 h-[56px] border border-white/10 focus-within:border-[#D4AF37] transition-colors">
-                  <span className="text-[#D4AF37] font-bold text-sm min-w-[40px]">大名</span>
-                  <div className="w-[1px] h-4 bg-white/20 mx-3" />
-                  <input
-                    type="text"
-                    placeholder="请输入您的名字"
-                    value={tempName}
-                    onChange={e => setTempName(e.target.value)}
-                    className="flex-1 bg-transparent text-white outline-none placeholder:text-white/30"
-                    required
-                  />
-                </div>
+              {/* Body */}
+              <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
+                <p className="text-center text-sm text-white/50 font-medium">输入房卡即可进入或创建房间</p>
 
-                <div className="relative bg-black/50 rounded-xl overflow-hidden flex items-center px-4 h-[56px] border border-white/10 focus-within:border-[#D4AF37] transition-colors">
-                  <span className="text-[#D4AF37] font-bold text-sm min-w-[40px]">房号</span>
-                  <div className="w-[1px] h-4 bg-white/20 mx-3" />
+                <div className="flex bg-black/60 border border-white/10 rounded-xl overflow-hidden focus-within:border-[#D4AF37]/50 focus-within:shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all">
+                  <div className="bg-black/40 px-4 py-3 text-[#D4AF37] font-black text-sm border-r border-white/10 flex items-center justify-center min-w-[80px]">
+                    房卡
+                  </div>
                   <input
                     type="text"
+                    maxLength={6}
                     placeholder="6位房间钥匙"
                     value={roomId}
-                    onChange={e => setRoomId(e.target.value.toUpperCase())}
-                    maxLength={6}
-                    className="flex-1 bg-transparent text-[#F2C94C] text-lg font-black tracking-widest outline-none placeholder:text-white/30 placeholder:tracking-normal uppercase"
-                    required
+                    onChange={(e) => setRoomId(e.target.value.replace(/\D/g, ''))}
+                    className="flex-1 bg-transparent px-4 py-3 text-white font-black text-lg outline-none placeholder:text-white/20 placeholder:font-normal"
                   />
                 </div>
 
-                <button 
+                <button
                   type="submit"
-                  disabled={roomId.length !== 6 || !tempName}
-                  className="w-full mt-4 bg-gradient-to-r from-[#D4AF37] to-[#F2C94C] text-black font-black text-lg py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
+                  disabled={roomId.length < 6}
+                  className="w-full mt-2 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:from-[#FFD700] hover:to-[#D4AF37] text-black py-3.5 rounded-xl font-black text-lg shadow-[0_5px_15px_rgba(212,175,55,0.4)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
                   加入 / 创建房间
                 </button>

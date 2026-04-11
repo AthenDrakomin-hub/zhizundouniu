@@ -353,7 +353,9 @@ export default function App() {
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [roomId, setRoomId] = useState('');
-  const [tempName, setTempName] = useState('');
+  const [tempName, setTempName] = useState(() => {
+    return localStorage.getItem('player_name') || `游客${Math.floor(Math.random() * 9000) + 1000}`;
+  });
   const [isJoined, setIsJoined] = useState(false);
   const [isActivated, setIsActivated] = useState(false);
   const [activationKey, setActivationKey] = useState('');
@@ -610,7 +612,14 @@ export default function App() {
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser = { id: Math.random().toString(36).substr(2, 9), name: tempName };
+    if (roomId.length < 6) return;
+    
+    // Auto-generate an ID if none exists (future: this will be replaced by WeChat openid)
+    const storedId = localStorage.getItem('player_id') || Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('player_id', storedId);
+    localStorage.setItem('player_name', tempName);
+
+    const newUser = { id: storedId, name: tempName };
     // Wait for roomUpdate or error before setting isJoined
     socket.emit('joinRoom', { roomId, user: newUser });
   };
