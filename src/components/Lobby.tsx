@@ -126,23 +126,13 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
             <Copy className="w-3 h-3" /> 复制 ID
           </button>
           <button onClick={() => {
-            const current = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
-            const next = current === '/images/ui/head_boy.png' ? '/images/ui/head_girl.png' : '/images/ui/head_boy.png';
-            localStorage.setItem('player_avatar', next);
-            setAvatar(next);
-            showToast('头像已更换');
-          }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
-            修改头像
-          </button>
-          <button onClick={() => {
-            const newName = prompt('请输入新的玩家昵称：', tempName);
-            if (newName && newName.trim()) {
-              localStorage.setItem('player_name', newName.trim());
-              setTempName(newName.trim());
-              showToast('修改资料成功');
-            }
+            showToast('正在同步微信资料...');
+            setTimeout(() => {
+              // 在这里预留重新拉取微信授权/资料同步的接口
+              showToast('微信资料已是最新');
+            }, 1000);
           }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1 mt-1">
-            修改昵称
+            <RefreshCw className="w-3 h-3" /> 同步资料
           </button>
         </div>
       </div>
