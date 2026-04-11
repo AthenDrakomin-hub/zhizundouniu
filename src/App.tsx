@@ -595,8 +595,35 @@ export default function App() {
       setIsActivated(true);
     });
 
+    socket.on('disconnect', () => {
+      // Don't auto-reset the whole state, just wait for reconnect
+      // The server will mark this player as disconnected but keep them in the room
+    });
+
+    socket.on('reconnect', () => {
+      // Re-join the room automatically if we were in one
+      const storedId = localStorage.getItem('player_id');
+      const tempName = localStorage.getItem('player_name');
+      const storedAvatar = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
+      
+      // We only try to reconnect if we have a room ID currently in state
+      if (roomId && storedId && tempName) {
+        socket.emit('joinRoom', { 
+          roomId, 
+          user: { id: storedId, name: tempName, avatar: storedAvatar } 
+        });
+      }
+    });
+
+    socket.on('connect_error', () => {
+      // Handle connection errors gracefully without breaking the UI
+    });
+
     return () => {
       socket.off('joinSuccess');
+      socket.off('disconnect');
+      socket.off('reconnect');
+      socket.off('connect_error');
       socket.off('joinError');
       socket.off('reconnectSuccess');
       socket.off('roomUpdate');

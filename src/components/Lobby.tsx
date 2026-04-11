@@ -140,9 +140,9 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" onChange={(e) => {
               if(e.target.checked) {
-                window.open('http://localhost:3000', '_blank');
-                setTimeout(() => e.target.checked = false, 500); // reset visually
-              }
+              window.open(window.location.origin.replace('app.', 'admin.'), '_blank');
+              setTimeout(() => e.target.checked = false, 500); // reset visually
+            }
             }} />
             <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F2C94C]"></div>
           </label>

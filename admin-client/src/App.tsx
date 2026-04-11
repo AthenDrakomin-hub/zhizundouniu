@@ -4,7 +4,7 @@ import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight } from 'lucide-re
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Room, Card } from '../../src/types';
-import { getWinningCards, getBullName } from '../../src/lib/gameLogic';
+import { getWinningCards } from '../../src/lib/gameLogic';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -13,7 +13,7 @@ function cn(...inputs: ClassValue[]) {
 // Connect to the main server port 3000
 // Initialize socket connection dynamically based on the current origin
 // Since Nginx proxies /socket.io/ to the backend, we can just connect to '/' or omit the URL
-const socket: Socket = io(window.location.origin, {
+const socket: Socket = io(import.meta.env.PROD ? window.location.origin.replace('admin.', 'app.') : 'http://localhost:3000', {
   path: '/socket.io/'
 });
 

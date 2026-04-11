@@ -48,6 +48,7 @@ export interface Player {
   presetFifthCard?: Card;
   targetWinRate: number;
   totalScore: number;
+  isDisconnected?: boolean;
 }
 
 export interface Room {
