@@ -9,6 +9,7 @@ import confetti from 'canvas-confetti';
 import html2canvas from 'html2canvas';
 import { cn } from './lib/utils';
 import { Lobby } from './components/Lobby';
+import { LoginScreen } from './components/LoginScreen';
 
 const socket: Socket = io();
 
@@ -77,7 +78,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
   const avatarRef = useRef<HTMLDivElement>(null);
 
   const isBoy = player.id.charCodeAt(0) % 2 === 0;
-  const avatarUrl = isBoy ? '/images/ui/head_boy.png' : '/images/ui/head_girl.png';
+  const avatarUrl = player.avatar || (isBoy ? '/images/ui/head_boy.png' : '/images/ui/head_girl.png');
   const frameUrl = '/images/ui/head_frame.png';
 
   return (
@@ -356,6 +357,7 @@ export default function App() {
   const [tempName, setTempName] = useState(() => {
     return localStorage.getItem('player_name') || `游客${Math.floor(Math.random() * 9000) + 1000}`;
   });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('player_id'));
   const [isJoined, setIsJoined] = useState(false);
   const [isActivated, setIsActivated] = useState(false);
   const [activationKey, setActivationKey] = useState('');
@@ -616,10 +618,11 @@ export default function App() {
     
     // Auto-generate an ID if none exists (future: this will be replaced by WeChat openid)
     const storedId = localStorage.getItem('player_id') || Math.random().toString(36).substr(2, 9);
+    const storedAvatar = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
     localStorage.setItem('player_id', storedId);
     localStorage.setItem('player_name', tempName);
 
-    const newUser = { id: storedId, name: tempName };
+    const newUser = { id: storedId, name: tempName, avatar: storedAvatar };
     // Wait for roomUpdate or error before setting isJoined
     socket.emit('joinRoom', { roomId, user: newUser });
   };
@@ -680,6 +683,12 @@ export default function App() {
   };
 
   if (!isJoined) {
+    if (!isLoggedIn) {
+      return <LoginScreen onLogin={() => {
+        setIsLoggedIn(true);
+        setTempName(localStorage.getItem('player_name') || '');
+      }} />;
+    }
     return (
       <Lobby
         onJoin={(rId, tName) => {

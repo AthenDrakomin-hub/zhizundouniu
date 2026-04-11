@@ -99,7 +99,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
       <div className="bg-gradient-to-r from-[#3C1B22] to-[#5C2D38] rounded-2xl p-4 border border-[#D4AF37]/50 shadow-[0_10px_20px_rgba(0,0,0,0.5)] flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl border-2 border-[#D4AF37] p-0.5 bg-black/50 shadow-inner">
-            <img src="/images/ui/head_boy.png" alt="avatar" className="w-full h-full rounded-xl object-cover" />
+            <img src={localStorage.getItem('player_avatar') || '/images/ui/head_boy.png'} alt="avatar" className="w-full h-full rounded-xl object-cover" />
           </div>
           <div>
             <h2 className="text-xl font-black text-white drop-shadow-md">{tempName}</h2>
@@ -110,8 +110,14 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           <button className="bg-gradient-to-r from-[#4A2F2F] to-[#2A1F1F] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
             <Copy className="w-3 h-3" /> 复制 ID
           </button>
-          <button className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
-            <WechatIcon className="w-3 h-3" /> 微信登录
+          <button onClick={() => {
+            const newName = prompt('请输入新的玩家昵称：', tempName);
+            if (newName && newName.trim()) {
+              localStorage.setItem('player_name', newName.trim());
+              setTempName(newName.trim());
+            }
+          }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1">
+            修改资料
           </button>
         </div>
       </div>
