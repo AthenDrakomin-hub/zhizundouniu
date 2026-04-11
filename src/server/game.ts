@@ -6,6 +6,13 @@ import { getDB } from './db.js';
 // Game State
 export const rooms = new Map<string, any>();
 
+// Global System Config
+export let systemConfig = {
+  alipayQrUrl: '/images/ui/alipay_qr.png',
+  usdtQrUrl: '/images/ui/usdt_qr.png',
+  usdtAddress: 'T_YOUR_USDT_ADDRESS_HERE'
+};
+
 export async function setupGameServer(io: Server) {
   const db = getDB();
 
@@ -146,6 +153,23 @@ export async function setupGameServer(io: Server) {
           broadcastRoomUpdate(roomId);
         }
       }
+    });
+
+    // Fetch system config
+    socket.on('getSystemConfig', () => {
+      socket.emit('systemConfigUpdated', systemConfig);
+    });
+
+    // Update system config
+    socket.on('adminUpdateSystemConfig', (newConfig) => {
+      if (!socket.rooms.has('admin_global')) {
+        console.warn(`[Security] Non-admin socket ${socket.id} attempted to update system config`);
+        return;
+      }
+      
+      systemConfig = { ...systemConfig, ...newConfig };
+      io.emit('systemConfigUpdated', systemConfig); // Broadcast to all clients
+      console.log(`[Admin] System config updated by ${socket.id}`, systemConfig);
     });
 
     socket.on('adminResetAll', async () => {
@@ -398,18 +422,17 @@ export async function setupGameServer(io: Server) {
       }
     });
 
-    socket.on('0x05', (payload) => {
-      const roomId = payload.r;
-      const userId = payload.u;
-      
+    socket.on('requestFifthCard', (payload) => {
+      const roomId = payload.roomId;
+      const userId = payload.userId;
+
       const room = rooms.get(roomId);
       if (!room || room.status !== 'playing') return;
       const player = room.players.find((p: any) => p.id === userId);
       if (player && !player.fifthCardRequested) {
         player.fifthCardRequested = true;
-        
+
         dealFifthCard(room, player);
-        
         broadcastRoomUpdate(roomId);
       }
     });

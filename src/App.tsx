@@ -11,14 +11,16 @@ import { cn } from './lib/utils';
 import { Lobby } from './components/Lobby';
 import { LoginScreen } from './components/LoginScreen';
 
-const socket: Socket = io();
+export const socket: Socket = io();
 
 // 简单的音效管理器，使用刚刚引入的真实音频文件
 const AudioManager = {
   sounds: {
     bgm: new Audio('/audio/bgm.mp3'),
     countDown: new Audio('/audio/countDown.mp3'),
-    deal: new Audio('/audio/effect1.mp3'), // 发牌音效
+    gamestart: new Audio('/audio/gamestart.mp3'),
+    warning: new Audio('/audio/warning.mp3'),
+    deal: new Audio('/audio/deal.mp3'), // 发牌音效
     chips: new Audio('/audio/effect2.mp3'), // 筹码音效
     heartbeat: new Audio('/audio/effect3.mp3'), // 心跳音效
     bigwin: new Audio('/audio/victory.mp3'), // 大奖音效
@@ -37,21 +39,33 @@ const AudioManager = {
       if (name === 'bgm') {
         audio.loop = true;
         audio.volume = 0.3;
+      } else {
+        audio.volume = 0.8;
       }
-      audio.play().catch(() => {});
+      audio.play().catch(e => console.log('Audio play failed:', e));
     } catch (e) {
-      console.error('Audio play error:', e);
+      console.log('Audio setup failed:', e);
     }
   },
   stop(name: string) {
     try {
       const audio = this.sounds[name];
-      if (!audio) return;
-      audio.pause();
-      audio.currentTime = 0;
-    } catch (e) {
-      console.error('Audio stop error:', e);
-    }
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    } catch (e) {}
+  },
+  duckBgm(durationMs: number) {
+    try {
+      const bgm = this.sounds['bgm'];
+      if (bgm && !bgm.paused) {
+        bgm.volume = 0.05; // Fade down
+        setTimeout(() => {
+          bgm.volume = 0.3; // Fade back up
+        }, durationMs);
+      }
+    } catch (e) {}
   }
 };
 
@@ -126,6 +140,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
 
         {/* Avatar */}
         <div 
+          id={`player-avatar-${player.id}`}
           ref={avatarRef}
           onClick={() => {
             if (onAvatarClick && avatarRef.current) {
@@ -285,9 +300,7 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
                 isRubbing={isSelf && i === 4 && roomStatus === 'playing' && !player.finish}
                 onRub={(progress) => {
                   if (progress > 0.5 && !player.fifthCardRequested && roomId) {
-                    // Obfuscated event name: 0x05 + random padding
-                    const padding = Array.from({ length: Math.floor(Math.random() * 10) }, () => Math.floor(Math.random() * 256));
-                    socket.emit('0x05', { r: roomId, u: player.id, p: padding });
+                    socket.emit('requestFifthCard', { roomId, userId: player.id });
                   }
                 }}
                 className={cn(
@@ -307,42 +320,39 @@ const PlayerSeat = ({ player, position, isSelf = false, roomStatus = "", roomId,
 
         {/* Bull Result Overlay (Image Style) */}
         {bullResult && bullResult.type !== -1 && (
-          <motion.div 
-            initial={{ scale: 0, y: 20, opacity: 0 }}
-            animate={{ 
-              scale: [0, 1.2, 1], 
-              y: 0, 
-              opacity: 1 
-            }}
+          <motion.div
+            initial={{ scale: 0.5, y: 20, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
             transition={{
               type: "spring",
               stiffness: 200,
-              damping: 10,
+              damping: 15,
               mass: 0.8
             }}
             className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
           >
-            <img 
-              src={`/images/niuniu/cow_${bullResult.type}.png`} 
+            {bullResult.type >= 10 && (
+              <div className="absolute inset-0 z-[-1] animate-[spin_4s_linear_infinite] opacity-50 blur-xl rounded-full bg-gradient-to-r from-yellow-400 via-red-500 to-yellow-400 scale-150"></div>
+            )}
+            <img
+              src={`/images/niuniu/cow_${bullResult.type}.png`}
               alt={getBullName(bullResult.type)}
-              className="w-20 sm:w-28 h-auto object-contain"
+              className={cn(
+                "w-20 sm:w-28 h-auto object-contain relative z-10",
+                bullResult.type >= 10 ? "drop-shadow-[0_0_15px_rgba(255,215,0,0.8)]" : ""
+              )}
               onError={(e) => {
                 // Fallback to text if image not found
                 e.currentTarget.style.display = 'none';
-                if (e.currentTarget.nextElementSibling) {
-                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block';
+                const parent = e.currentTarget.parentElement;
+                if (parent && !parent.querySelector('.fallback-text')) {
+                  const text = document.createElement('div');
+                  text.className = 'fallback-text bg-black/80 text-yellow-400 px-3 py-1 rounded-full font-black text-sm whitespace-nowrap border border-yellow-500/50 shadow-lg';
+                  text.innerText = getBullName(bullResult.type);
+                  parent.appendChild(text);
                 }
               }}
             />
-            <div className="hidden">
-              <div className="relative">
-                <div className="absolute inset-0 bg-[#5c2e0e] rounded-md border-2 border-[#3e1a05] shadow-[0_4px_10px_rgba(0,0,0,0.5)]" />
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] opacity-30 rounded-md" />
-                <div className="relative px-4 py-1 text-yellow-500 font-black text-xs sm:text-sm whitespace-nowrap">
-                  {getBullName(bullResult.type)}
-                </div>
-              </div>
-            </div>
           </motion.div>
         )}
       </div>
@@ -418,13 +428,22 @@ export default function App() {
     return positions[idx] || "top-left";
   };
 
-  const getCoordinatesFromPos = (pos: string) => {
+  const getCoordinatesFromPos = (pos: string, id: string) => {
+    // Attempt to find the DOM element for precise coordinates
+    const el = document.getElementById(`player-avatar-${id}`);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      return { x: `${rect.left + rect.width / 2}px`, y: `${rect.top + rect.height / 2}px` };
+    }
+
+    // Fallback to approximate viewport percentages if DOM element is not found
     switch (pos) {
       case "bottom": return { x: "50vw", y: "85vh" };
       case "top-left": return { x: "15vw", y: "15vh" };
       case "top-right": return { x: "85vw", y: "15vh" };
       case "mid-left": return { x: "10vw", y: "50vh" };
       case "mid-right": return { x: "90vw", y: "50vh" };
+      case "center": return { x: "50vw", y: "50vh" };
       default: return { x: "50vw", y: "50vh" };
     }
   };
@@ -462,6 +481,13 @@ export default function App() {
       AudioManager.stop('bgm');
     }
   }, [isSoundEnabled, isJoined, room?.status]);
+
+  // Effect to handle tense countdown sounds
+  useEffect(() => {
+    if (room && room.timeLeft !== undefined && room.timeLeft <= 3 && room.timeLeft > 0) {
+      playSound('warning');
+    }
+  }, [room?.timeLeft]);
 
   useEffect(() => {
     socket.on('joinError', (msg: string) => {
@@ -516,6 +542,9 @@ export default function App() {
         // Play sounds based on status change
         if (updatedRoom.status === 'playing' && room.status !== 'playing') {
           playSound('deal');
+        } else if (updatedRoom.status === 'dealing_4' && room.status !== 'dealing_4') {
+          playSound('gamestart');
+          setTimeout(() => playSound('deal'), 500);
         } else if (updatedRoom.status === 'dealing_5' && room.status !== 'dealing_5') {
           playSound('heartbeat');
         } else if (updatedRoom.status === 'betting' && room.status !== 'betting') {
@@ -542,6 +571,7 @@ export default function App() {
         // 牛牛或以上大牌震屏 + 音效
         if (me && calculateBull(me.cards).type >= 10) {
           playSound('bigwin');
+          AudioManager.duckBgm(5000); // Duck BGM for 5 seconds during big win
         }
 
         // 筹码飞行动画
@@ -553,15 +583,20 @@ export default function App() {
           updatedRoom.players.forEach(p => {
             if (p.isDealer) return;
             const pPos = getPlayerPositionStr(p.id, updatedRoom);
-            if (p.lastWin < 0) {
-              // Loser -> Dealer
-              for(let i=0; i<3; i++) {
-                newChips.push({ id: Math.random().toString(36).substr(2, 9), fromPos: pPos, toPos: dealerPos });
-              }
-            } else if (p.lastWin > 0) {
-              // Dealer -> Winner
-              for(let i=0; i<3; i++) {
-                newChips.push({ id: Math.random().toString(36).substr(2, 9), fromPos: dealerPos, toPos: pPos });
+            if (p.lastWin !== undefined && p.lastWin !== 0) {
+              // Dynamic chip count based on win/loss amount (min 3, max 15)
+              const chipCount = Math.min(15, Math.max(3, Math.ceil(Math.abs(p.lastWin) / 100)));
+              
+              if (p.lastWin < 0) {
+                // Loser -> Dealer
+                for(let i=0; i<chipCount; i++) {
+                  newChips.push({ id: Math.random().toString(36).substr(2, 9), fromPos: pPos, toPos: dealerPos });
+                }
+              } else if (p.lastWin > 0) {
+                // Dealer -> Winner
+                for(let i=0; i<chipCount; i++) {
+                  newChips.push({ id: Math.random().toString(36).substr(2, 9), fromPos: dealerPos, toPos: pPos });
+                }
               }
             }
           });
@@ -602,11 +637,13 @@ export default function App() {
     });
 
     socket.on('disconnect', () => {
+      showToast('网络连接已断开，正在尝试重连...');
       // Don't auto-reset the whole state, just wait for reconnect
       // The server will mark this player as disconnected but keep them in the room
     });
 
     socket.on('reconnect', () => {
+      showToast('网络已恢复，重连成功！');
       // Re-join the room automatically if we were in one
       const storedId = localStorage.getItem('player_id');
       const tempName = localStorage.getItem('player_name');
@@ -623,6 +660,11 @@ export default function App() {
 
     socket.on('connect_error', () => {
       // Handle connection errors gracefully without breaking the UI
+      showToast('网络连接失败，请检查网络设置');
+    });
+
+    socket.on('error', (msg: string) => {
+      showToast(`错误: ${msg}`);
     });
 
     return () => {
@@ -630,6 +672,7 @@ export default function App() {
       socket.off('disconnect');
       socket.off('reconnect');
       socket.off('connect_error');
+      socket.off('error');
       socket.off('joinError');
       socket.off('reconnectSuccess');
       socket.off('roomUpdate');
@@ -669,12 +712,32 @@ export default function App() {
   const handleBid = (multiplier: number) => {
     if (!user || !room) return;
     playSound('bid');
+    
+    // Optimistic UI update
+    setRoom(prev => {
+      if (!prev) return prev;
+      const newPlayers = prev.players.map(p => 
+        p.id === user.id ? { ...p, hasBid: true, bidMultiplier: multiplier } : p
+      );
+      return { ...prev, players: newPlayers };
+    });
+
     socket.emit('bid', { roomId: room.id, userId: user.id, multiplier });
   };
 
   const handleBet = (multiplier: number) => {
     if (!user || !room) return;
     playSound('bet');
+    
+    // Optimistic UI update
+    setRoom(prev => {
+      if (!prev) return prev;
+      const newPlayers = prev.players.map(p => 
+        p.id === user.id ? { ...p, hasBet: true, betMultiplier: multiplier } : p
+      );
+      return { ...prev, players: newPlayers };
+    });
+
     socket.emit('bet', { roomId: room.id, userId: user.id, multiplier });
   };
 
@@ -746,6 +809,18 @@ export default function App() {
   // Position mapping for UI
   const positions = ["top-left", "top-right", "mid-left", "mid-right"];
 
+  // Helper to detect same IPs
+  const hasSameIpWarning = React.useMemo(() => {
+    if (!room || !room.players || room.players.length < 2) return false;
+    const ipCounts = room.players.reduce((acc, p) => {
+      if (p.ip) {
+        acc[p.ip] = (acc[p.ip] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    return Object.values(ipCounts).some(count => count > 1);
+  }, [room]);
+
   return (
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
       {/* Poker Table Background */}
@@ -758,16 +833,23 @@ export default function App() {
       {room?.status && room.status !== 'waiting' && room.status !== 'game_over' && (
         <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50">
           <button
-            onMouseDown={() => { playSound('click'); setShowCards(true); }}
-            onMouseUp={() => setShowCards(false)}
-            onMouseLeave={() => setShowCards(false)}
-            onTouchStart={() => { playSound('click'); setShowCards(true); }}
-            onTouchEnd={() => setShowCards(false)}
+            onMouseDown={(e) => { e.preventDefault(); playSound('click'); setShowCards(true); }}
+            onMouseUp={(e) => { e.preventDefault(); setShowCards(false); }}
+            onMouseLeave={(e) => { e.preventDefault(); setShowCards(false); }}
+            onTouchStart={(e) => { e.preventDefault(); playSound('click'); setShowCards(true); }}
+            onTouchEnd={(e) => { e.preventDefault(); setShowCards(false); }}
+            onTouchCancel={(e) => { e.preventDefault(); setShowCards(false); }}
+            style={{ 
+              userSelect: 'none', 
+              WebkitUserSelect: 'none',
+              touchAction: 'none',
+              WebkitTouchCallout: 'none'
+            }}
             className={cn(
-              "flex items-center gap-2 px-6 py-3 rounded-full font-black transition-all shadow-2xl border-2",
+              "flex items-center gap-2 px-6 py-3 rounded-full font-black transition-all shadow-2xl border-2 select-none",
               showCards 
                 ? "bg-yellow-500 text-black border-yellow-400 scale-110" 
-                : "bg-black/60 text-yellow-500 border-yellow-500/30 hover:bg-black/80"
+                : "bg-black/60 text-yellow-500 border-yellow-500/50 hover:bg-black/80 backdrop-blur-md"
             )}
           >
             {showCards ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
@@ -804,8 +886,8 @@ export default function App() {
       </div>
 
       {/* Anti-cheat Banner */}
-      {false && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white px-6 py-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] border border-red-400 font-black flex items-center gap-2 animate-pulse">
+      {hasSameIpWarning && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[60] bg-red-600/90 backdrop-blur-md text-white px-6 py-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] border border-red-400 font-black flex items-center gap-2 animate-pulse text-sm">
           <ShieldCheck className="w-5 h-5" />
           防伙牌预警：检测到同 IP 玩家！
         </div>
@@ -890,13 +972,33 @@ export default function App() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-full max-w-md">
           {room?.status === 'rolling_dice' && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 360 }}
+                transition={{ type: 'spring', damping: 12 }}
                 className="bg-[#FDFBF7] p-8 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] border-4 border-[#E8DCC4]"
               >
                 <div className="text-6xl font-black text-[#8B0000] flex flex-col items-center">
-                  🎲 {room?.diceRoll || 1}
+                  <div className="relative w-24 h-24 mb-2 flex items-center justify-center">
+                    <motion.div
+                      animate={{ 
+                        rotateX: [0, 360, 720, 1080],
+                        rotateY: [0, 360, 720, 1080],
+                        rotateZ: [0, 180, 360, 720]
+                      }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                      className="absolute inset-0 flex items-center justify-center text-8xl drop-shadow-xl"
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      {/* Using different dice emojis to simulate rolling, ending on the actual roll */}
+                      <motion.span
+                        animate={{ opacity: [1, 0, 1, 0, 1] }}
+                        transition={{ duration: 1.5, times: [0, 0.2, 0.4, 0.8, 1] }}
+                      >
+                        {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][(room?.diceRoll || 1) - 1]}
+                      </motion.span>
+                    </motion.div>
+                  </div>
                   <span className="text-sm text-[#D4AF37] mt-3 tracking-widest font-bold">掷点定庄</span>
                 </div>
               </motion.div>
@@ -959,16 +1061,16 @@ export default function App() {
 
           {/* Flying Emotes */}
           {flyingEmotes.map(emote => {
-            const fromPos = getCoordinatesFromPos(getPlayerPositionStr(emote.fromId, room!));
-            const toPos = getCoordinatesFromPos(getPlayerPositionStr(emote.toId, room!));
+            const fromPos = getCoordinatesFromPos(getPlayerPositionStr(emote.fromId, room!), emote.fromId);
+            const toPos = getCoordinatesFromPos(getPlayerPositionStr(emote.toId, room!), emote.toId);
             return (
               <motion.div
                 key={emote.id}
-                initial={{ left: fromPos.x, top: fromPos.y, scale: 0.5, opacity: 0 }}
-                animate={{ left: toPos.x, top: toPos.y, scale: 2, opacity: 1 }}
+                initial={{ left: fromPos.x, top: fromPos.y, scale: 0.5, opacity: 0, x: "-50%", y: "-50%" }}
+                animate={{ left: toPos.x, top: toPos.y, scale: 2, opacity: 1, x: "-50%", y: "-50%" }}
                 exit={{ opacity: 0, scale: 3 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="fixed -translate-x-1/2 -translate-y-1/2 z-[120] text-6xl pointer-events-none drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+                className="fixed z-[120] text-6xl pointer-events-none drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
               >
                 {emote.emote}
               </motion.div>
@@ -977,15 +1079,15 @@ export default function App() {
 
           {/* Flying Chats */}
           {flyingChats.map(chat => {
-            const pos = getCoordinatesFromPos(getPlayerPositionStr(chat.userId, room!));
+            const pos = getCoordinatesFromPos(getPlayerPositionStr(chat.userId, room!), chat.userId);
             return (
               <motion.div
                 key={chat.id}
-                initial={{ left: pos.x, top: pos.y, opacity: 0, y: 10, scale: 0.8 }}
-                animate={{ left: pos.x, top: pos.y, opacity: 1, y: -40, scale: 1 }}
-                exit={{ opacity: 0, y: -60, scale: 0.8 }}
+                initial={{ left: pos.x, top: pos.y, opacity: 0, y: "10%", scale: 0.8, x: "-50%" }}
+                animate={{ left: pos.x, top: pos.y, opacity: 1, y: "-100%", scale: 1, x: "-50%" }}
+                exit={{ opacity: 0, y: "-150%", scale: 0.8 }}
                 transition={{ duration: 0.4 }}
-                className="fixed -translate-x-1/2 -translate-y-full z-[130] pointer-events-none"
+                className="fixed z-[130] pointer-events-none"
               >
                 <div className="bg-white/90 backdrop-blur-sm text-black px-4 py-2 rounded-2xl rounded-bl-none shadow-xl font-bold text-sm whitespace-nowrap border-2 border-black/10 relative drop-shadow-md">
                   {chat.message}
@@ -997,17 +1099,28 @@ export default function App() {
 
           {/* Flying Chips */}
           {flyingChips.map(chip => {
-            const fromPos = getCoordinatesFromPos(chip.fromPos);
-            const toPos = getCoordinatesFromPos(chip.toPos);
+            let targetId = chip.toPos;
+            if (chip.toPos !== 'center') {
+              const playerObj = room?.players.find(p => getPlayerPositionStr(p.id, room!) === chip.toPos);
+              if (playerObj) targetId = playerObj.id;
+            }
+            let fromId = chip.fromPos;
+            if (chip.fromPos !== 'center') {
+              const playerObj = room?.players.find(p => getPlayerPositionStr(p.id, room!) === chip.fromPos);
+              if (playerObj) fromId = playerObj.id;
+            }
+            
+            const fromPos = getCoordinatesFromPos(chip.fromPos, fromId);
+            const toPos = getCoordinatesFromPos(chip.toPos, targetId);
             return (
               <motion.img
                 key={chip.id}
                 src="/images/niuniu/coin_gold.png"
-                initial={{ left: fromPos.x, top: fromPos.y, scale: 0 }}
-                animate={{ left: toPos.x, top: toPos.y, scale: 1.5, rotate: 720 }}
+                initial={{ left: fromPos.x, top: fromPos.y, scale: 0, x: "-50%", y: "-50%" }}
+                animate={{ left: toPos.x, top: toPos.y, scale: 1.5, rotate: 720, x: "-50%", y: "-50%" }}
                 transition={{ duration: 0.6 + Math.random() * 0.4, ease: "easeOut" }}
                 onAnimationComplete={() => playSound('chips')}
-                className="fixed -translate-x-1/2 -translate-y-1/2 z-[90] pointer-events-none w-10 h-10 drop-shadow-[0_5px_10px_rgba(255,215,0,0.5)] object-contain"
+                className="fixed z-[90] pointer-events-none w-10 h-10 drop-shadow-[0_5px_10px_rgba(255,215,0,0.5)] object-contain"
               />
             );
           })}

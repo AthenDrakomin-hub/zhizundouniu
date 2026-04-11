@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight, X } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Room, Card } from '../../src/types';
@@ -27,11 +27,24 @@ export default function App() {
   const [room, setRoom] = useState<Room | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState('');
+  
+  // System Config State
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [systemConfig, setSystemConfig] = useState({
+    alipayQrUrl: '/images/ui/alipay_qr.png',
+    usdtQrUrl: '/images/ui/usdt_qr.png',
+    usdtAddress: 'T_YOUR_USDT_ADDRESS_HERE'
+  });
 
   useEffect(() => {
     socket.on('adminLoginSuccess', (rooms: Room[]) => {
       setIsLoggedIn(true);
       setAllRooms(rooms);
+      socket.emit('getSystemConfig');
+    });
+
+    socket.on('systemConfigUpdated', (config: any) => {
+      setSystemConfig(config);
     });
 
     socket.on('adminRoomsUpdate', (rooms: Room[]) => {
@@ -200,14 +213,22 @@ export default function App() {
             </div>
           </div>
 
-          {/* 钥匙生成区 */}
-          <button 
-            onClick={handleCreateRoom}
-            className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-black p-5 rounded-2xl mb-8 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 transition-all border border-red-500/50"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-            <span className="tracking-widest">生成新房卡 (创建房间)</span>
-          </button>
+          {/* 钥匙生成区与设置区 */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <button
+              onClick={handleCreateRoom}
+              className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-black p-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 transition-all border border-red-500/50"
+            >
+              <Plus className="w-5 h-5 stroke-[3]" />
+              <span className="tracking-widest">创建新房间</span>
+            </button>
+            <button
+              onClick={() => setShowConfigModal(true)}
+              className="bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white font-black p-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,0,0,0.5)] active:scale-95 transition-all border border-white/20"
+            >
+              <span className="tracking-widest">系统收款设置</span>
+            </button>
+          </div>
 
           {/* 列表区 */}
           <div className="flex items-center gap-2 mb-4 px-1">
@@ -253,6 +274,58 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {/* System Config Modal */}
+        {showConfigModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-900 border border-white/20 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
+                <h2 className="font-black tracking-widest text-lg">系统收款设置</h2>
+                <button onClick={() => setShowConfigModal(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-white/50 mb-2 tracking-widest">支付宝收款码路径/URL</label>
+                  <input 
+                    type="text" 
+                    value={systemConfig.alipayQrUrl} 
+                    onChange={e => setSystemConfig({...systemConfig, alipayQrUrl: e.target.value})}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500"
+                  />
+                  <p className="text-[10px] text-white/30 mt-1">例如: /images/ui/alipay_qr.png</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-white/50 mb-2 tracking-widest">USDT收款码路径/URL</label>
+                  <input 
+                    type="text" 
+                    value={systemConfig.usdtQrUrl} 
+                    onChange={e => setSystemConfig({...systemConfig, usdtQrUrl: e.target.value})}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-white/50 mb-2 tracking-widest">USDT (TRC20) 钱包地址</label>
+                  <input 
+                    type="text" 
+                    value={systemConfig.usdtAddress} 
+                    onChange={e => setSystemConfig({...systemConfig, usdtAddress: e.target.value})}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-red-500"
+                  />
+                </div>
+                <button 
+                  onClick={() => {
+                    socket.emit('adminUpdateSystemConfig', systemConfig);
+                    setShowConfigModal(false);
+                    showToast('收款设置已更新');
+                  }}
+                  className="w-full mt-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-black py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-all tracking-widest"
+                >
+                  保存设置
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
