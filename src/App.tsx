@@ -470,6 +470,12 @@ export default function App() {
       setUser(null);
     });
 
+    socket.on('cardDeducted', () => {
+      const cards = parseInt(localStorage.getItem('player_cards') || '0', 10);
+      localStorage.setItem('player_cards', Math.max(0, cards - 1).toString());
+      window.dispatchEvent(new Event('cardsUpdated'));
+    });
+
     socket.on('reconnectSuccess', (existingUser: any) => {
       setUser(existingUser);
       setIsJoined(true);
@@ -719,8 +725,12 @@ export default function App() {
     return (
       <Lobby
         onJoin={(rId, tName) => {
-          const newUser = { id: Math.random().toString(36).substr(2, 9), name: tName };
-          socket.emit('joinRoom', { roomId: rId, user: newUser });
+          const storedId = localStorage.getItem('player_id') || Math.random().toString(36).substr(2, 9);
+          const storedAvatar = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
+          const cards = parseInt(localStorage.getItem('player_cards') || '0', 10);
+          
+          const newUser = { id: storedId, name: tName, avatar: storedAvatar };
+          socket.emit('joinRoom', { roomId: rId, user: newUser, hasCard: cards > 0 });
         }}
         tempName={tempName}
         setTempName={setTempName}

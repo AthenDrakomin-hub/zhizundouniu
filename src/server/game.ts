@@ -241,14 +241,14 @@ export async function setupGameServer(io: Server) {
       }
     });
 
-    socket.on('joinRoom', ({ roomId, user }) => {
+    socket.on('joinRoom', ({ roomId, user, hasCard }) => {
       let room = rooms.get(roomId);
       const ip = socket.handshake.address;
 
       if (room) {
         // 检查是否重名
         const existingPlayerByName = room.players.find((p: any) => p.name === user.name);
-        
+
         if (existingPlayerByName) {
           if (existingPlayerByName.isDisconnected) {
             // 允许重连，接管原座位
@@ -270,12 +270,20 @@ export async function setupGameServer(io: Server) {
           socket.emit('joinError', '房间已满');
           return;
         }
+        
+        socket.join(roomId);
       }
 
-      socket.join(roomId);
-
       if (!room) {
-        room = { 
+        if (!hasCard) {
+          socket.emit('joinError', '房卡不足，请前往【我的-房卡包/商城】获取房卡后再创建房间！');
+          return;
+        }
+
+        socket.join(roomId);
+        socket.emit('cardDeducted'); // 通知前端扣除房卡
+
+        room = {
           id: roomId, 
           players: [], 
           status: 'waiting', 
