@@ -364,6 +364,12 @@ export default function App() {
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [roomId, setRoomId] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 3000);
+  };
   const [tempName, setTempName] = useState(() => {
     return localStorage.getItem('player_name') || `游客${Math.floor(Math.random() * 9000) + 1000}`;
   });
@@ -823,6 +829,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
+      {/* Global Toast Notification */}
+      <AnimatePresence>
+        {toastMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: "-50%" }}
+            animate={{ opacity: 1, y: 20, x: "-50%" }}
+            exit={{ opacity: 0, y: -20, x: "-50%" }}
+            className="fixed top-0 left-1/2 z-[200] bg-black/80 text-white px-6 py-3 rounded-full font-bold text-sm shadow-[0_5px_15px_rgba(0,0,0,0.5)] border border-white/20 whitespace-nowrap backdrop-blur-md flex items-center gap-2"
+          >
+            {toastMsg.includes('断开') || toastMsg.includes('失败') || toastMsg.includes('错误') ? (
+              <ShieldCheck className="w-4 h-4 text-red-500" />
+            ) : (
+              <Zap className="w-4 h-4 text-[#D4AF37]" />
+            )}
+            {toastMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Poker Table Background */}
       <div className="absolute inset-0 pointer-events-none opacity-100 z-[-10]">
         <img src="/images/ui/youxibeijing.png" alt="background" className="w-full h-full object-cover scale-105" />
