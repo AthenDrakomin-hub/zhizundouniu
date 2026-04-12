@@ -384,6 +384,19 @@ export default function App() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(15);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // Helper to detect same IPs (moved to top level to avoid React hook violation #310)
+  const hasSameIpWarning = useMemo(() => {
+    if (!room || !room.players || room.players.length < 2) return false;
+    const ipCounts = room.players.reduce((acc, p) => {
+      if (p.ip) {
+        acc[p.ip] = (acc[p.ip] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    return Object.values(ipCounts).some((count: number) => count > 1);
+  }, [room]);
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (room?.status === 'finished') {
@@ -814,18 +827,6 @@ export default function App() {
   
   // Position mapping for UI
   const positions = ["top-left", "top-right", "mid-left", "mid-right"];
-
-  // Helper to detect same IPs
-  const hasSameIpWarning = useMemo(() => {
-    if (!room || !room.players || room.players.length < 2) return false;
-    const ipCounts = room.players.reduce((acc, p) => {
-      if (p.ip) {
-        acc[p.ip] = (acc[p.ip] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-    return Object.values(ipCounts).some((count: number) => count > 1);
-  }, [room]);
 
   return (
     <div className="min-h-screen text-white font-sans overflow-hidden relative">
