@@ -384,12 +384,13 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
 
           <div className="bg-black/40 p-4 rounded-xl border border-white/10">
             <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Crown className="w-5 h-5"/> 牌型大小与倍率</h3>
-            <p className="mb-1"><span className="text-red-400 font-bold">五花牛 (5倍)：</span>5张牌全部是 J、Q、K。</p>
+            <p className="mb-1"><span className="text-red-400 font-bold">五小牛 (8倍)：</span>5张牌点数相加不超过10。</p>
+            <p className="mb-1"><span className="text-red-400 font-bold">五花牛 (6倍)：</span>5张牌全部是 J、Q、K。</p>
             <p className="mb-1"><span className="text-red-400 font-bold">四花牛 (4倍)：</span>4张牌是 J、Q、K，第5张是 10。</p>
-            <p className="mb-1"><span className="text-yellow-400 font-bold">牛牛 (3倍)：</span>3张凑10，剩下2张相加也是10的倍数。</p>
-            <p className="mb-1"><span className="text-yellow-400 font-bold">牛九 (2倍) / 牛八 (2倍)：</span>剩下2张相加个位为 9 或 8。</p>
-            <p className="mb-1"><span className="text-white font-bold">牛七到牛一 (1倍)：</span>剩下2张相加个位为 7 到 1。</p>
-            <p className="mb-1"><span className="text-white/60 font-bold">无牛 (1倍)：</span>任意3张牌都无法凑成10的倍数。</p>
+            <p className="mb-1"><span className="text-yellow-400 font-bold">牛牛 (5倍)：</span>3张凑10，剩下2张相加也是10的倍数。</p>
+            <p className="mb-1"><span className="text-yellow-400 font-bold">牛九 (3倍)：</span>剩下2张相加个位为 9。</p>
+            <p className="mb-1"><span className="text-white font-bold">牛八 / 牛七 (2倍)：</span>剩下2张相加个位为 8 或 7。</p>
+            <p className="mb-1"><span className="text-white/60 font-bold">牛六到牛一 / 无牛 (1倍)：</span>剩余牌型皆为1倍。</p>
             <p className="mt-2 text-xs text-[#D4AF37]/80 leading-relaxed border-t border-white/10 pt-2">
               <span className="font-bold">比牌规则：</span>牌型一样大时，比较最大单张牌的大小（K&gt;Q&gt;J&gt;10&gt;...&gt;A）；单张点数相同时比较花色（黑桃&gt;红桃&gt;梅花&gt;方块）。
             </p>
