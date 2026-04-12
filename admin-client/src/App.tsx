@@ -161,6 +161,7 @@ export default function App() {
                     value={adminKey}
                     onChange={e => setAdminKey(e.target.value)}
                     className="w-full bg-[#150505] border border-red-500/20 rounded-2xl py-4 pl-12 pr-4 text-sm font-mono tracking-widest text-white focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 outline-none transition-all placeholder:text-white/20 placeholder:tracking-normal shadow-inner"
+                    autoComplete="new-password"
                     required
                   />
                 </div>

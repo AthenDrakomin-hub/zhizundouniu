@@ -1,0 +1,4 @@
+- [ ] 后端 `server.ts` 中的 Express 和 Socket.io CORS 配置已更新，支持带 credentials 的跨域请求
+- [ ] 前端 `admin-client/src/App.tsx` 中的密码输入框已添加 `autoComplete` 属性
+- [ ] 后端已重新编译 (`npm run build:server`)
+- [ ] PM2 服务已重启 (`pm2 restart all`)
