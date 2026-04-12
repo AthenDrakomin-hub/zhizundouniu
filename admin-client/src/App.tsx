@@ -12,20 +12,14 @@ function cn(...inputs: ClassValue[]) {
 
 const getSocketUrl = () => {
   if (!import.meta.env.PROD) return 'http://localhost:3000';
-  // Use app.yefeng.us.cc directly for the backend connection to avoid Nginx proxy issues on admin domain
+  // If we are on admin.yefeng.us.cc, we should connect to the same host's root but through the app domain, or just omit URL
   if (window.location.hostname.includes('yefeng.us.cc')) {
     return 'https://app.yefeng.us.cc';
-  }
-  if (window.location.hostname.startsWith('admin.')) {
-    return window.location.origin.replace('admin.', 'app.');
   }
   return window.location.origin;
 };
 
-const socket: Socket = io(getSocketUrl(), {
-  path: '/socket.io/',
-  transports: ['websocket', 'polling']
-});
+const socket: Socket = io(getSocketUrl());
 
 const SUITS = ['♠', '♥', '♣', '♦'];
 const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
