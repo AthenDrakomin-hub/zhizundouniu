@@ -373,17 +373,26 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
           </div>
           
           <div className="bg-black/40 p-4 rounded-xl border border-white/10">
-            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Flame className="w-5 h-5"/> 斗牛核心玩法</h3>
-            <p className="mb-2">1. 每位玩家发5张牌，找出3张牌凑成10的整数倍（J、Q、K均计为10）。</p>
-            <p className="mb-2">2. 剩下2张牌相加取个位数即为“牛数”。例如剩7和8，相加15，即为“牛五”。</p>
-            <p className="mb-2">3. <span className="text-yellow-400 font-bold">牛牛：</span>3张牌凑成10的倍数，剩下2张相加也是10的倍数（最大）。</p>
-            <p>4. <span className="text-red-400 font-bold">五花牛：</span>5张牌全部是J、Q、K，倍率最高！</p>
+            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Flame className="w-5 h-5"/> 抢庄牛牛核心规则</h3>
+            <p className="mb-2"><span className="text-white font-bold">1. 基础玩法：</span>每局发5张牌，其中3张相加凑成10的整数倍（J/Q/K算10），另外2张相加取个位即为“牛数”。</p>
+            <p className="mb-2"><span className="text-white font-bold">2. 明牌抢庄：</span>开局发4张明牌，玩家根据牌面选择“抢庄”倍数（1倍/2倍/3倍/4倍等）。</p>
+            <p className="mb-2"><span className="text-white font-bold">3. 确定庄家：</span>选择倍数最高的玩家成为庄家。若多人最高倍数相同，系统随机（掷骰子）选庄。</p>
+            <p className="mb-2"><span className="text-white font-bold">4. 闲家加注：</span>确定庄家后，闲家根据自己的手牌选择下注倍数（1倍/2倍/3倍等）。</p>
+            <p className="mb-2"><span className="text-white font-bold">5. 搓牌亮牌：</span>所有玩家下注完毕，系统发第5张牌。玩家可手动“搓牌”增加刺激感，之后全部亮牌。</p>
+            <p className="mb-2"><span className="text-white font-bold">6. 比牌结算：</span>闲家只与庄家比牌。输赢积分 = 底分 × 庄家倍数 × 闲家倍数 × 牌型倍数。</p>
           </div>
 
           <div className="bg-black/40 p-4 rounded-xl border border-white/10">
-            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Crown className="w-5 h-5"/> 庄家与倍率</h3>
-            <p className="mb-2">1. 游戏支持<span className="text-white font-bold">明牌抢庄</span>，看4张牌后决定是否抢庄，倍数最高者成为庄家。</p>
-            <p>2. 若多人抢庄倍数相同，系统将通过<span className="text-[#D4AF37] font-bold">掷骰子</span>随机产生庄家，保证绝对公平。</p>
+            <h3 className="text-[#D4AF37] font-black text-lg mb-2 flex items-center gap-2"><Crown className="w-5 h-5"/> 牌型大小与倍率</h3>
+            <p className="mb-1"><span className="text-red-400 font-bold">五花牛 (5倍)：</span>5张牌全部是 J、Q、K。</p>
+            <p className="mb-1"><span className="text-red-400 font-bold">四花牛 (4倍)：</span>4张牌是 J、Q、K，第5张是 10。</p>
+            <p className="mb-1"><span className="text-yellow-400 font-bold">牛牛 (3倍)：</span>3张凑10，剩下2张相加也是10的倍数。</p>
+            <p className="mb-1"><span className="text-yellow-400 font-bold">牛九 (2倍) / 牛八 (2倍)：</span>剩下2张相加个位为 9 或 8。</p>
+            <p className="mb-1"><span className="text-white font-bold">牛七到牛一 (1倍)：</span>剩下2张相加个位为 7 到 1。</p>
+            <p className="mb-1"><span className="text-white/60 font-bold">无牛 (1倍)：</span>任意3张牌都无法凑成10的倍数。</p>
+            <p className="mt-2 text-xs text-[#D4AF37]/80 leading-relaxed border-t border-white/10 pt-2">
+              <span className="font-bold">比牌规则：</span>牌型一样大时，比较最大单张牌的大小（K&gt;Q&gt;J&gt;10&gt;...&gt;A）；单张点数相同时比较花色（黑桃&gt;红桃&gt;梅花&gt;方块）。
+            </p>
           </div>
 
           <div className="bg-black/40 p-4 rounded-xl border border-white/10">
@@ -559,7 +568,8 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
     chat: '全服聊天',
     phone: '绑定手机',
     key: '安全密钥',
-    cards: '我的房卡'
+    cards: '我的房卡',
+    rules: '游戏规则与玩法'
   };
 
   return (
@@ -704,7 +714,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
 
       {/* Generic Panel Modal */}
       <AnimatePresence>
-        {openPanel && !['store', 'chat', 'phone', 'key', 'cards'].includes(openPanel) === false && (
+        {openPanel && panelTitles[openPanel] && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
