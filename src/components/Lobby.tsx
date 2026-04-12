@@ -278,13 +278,28 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
     </div>
   );
 
+  const [hiddenAdminClick, setHiddenAdminClick] = useState(0);
+
   const renderMine = () => (
     <div className="flex-1 flex flex-col pt-4 px-4 pb-24 gap-4 overflow-y-auto">
       {/* Profile Card */}
       <div className="bg-gradient-to-r from-[#3C1B22] to-[#5C2D38] rounded-2xl p-4 border border-[#D4AF37]/50 shadow-[0_10px_20px_rgba(0,0,0,0.5)] flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl border-2 border-[#D4AF37] p-0.5 bg-black/50 shadow-inner">
-            <img src={avatar} alt="avatar" className="w-full h-full rounded-xl object-cover" />
+          <div 
+            className="w-16 h-16 rounded-2xl border-2 border-[#D4AF37] p-0.5 bg-black/50 shadow-inner cursor-pointer"
+            onClick={() => {
+              const newCount = hiddenAdminClick + 1;
+              setHiddenAdminClick(newCount);
+              if (newCount >= 5) {
+                setHiddenAdminClick(0);
+                showToast('已进入开发者/管理模式');
+                window.open(window.location.origin.replace('app.', 'admin.'), '_blank');
+              } else if (newCount >= 3) {
+                showToast(`再点击 ${5 - newCount} 次进入管理端`);
+              }
+            }}
+          >
+            <img src={avatar} alt="avatar" className="w-full h-full rounded-xl object-cover pointer-events-none" />
           </div>
           <div>
             <h2 className="text-xl font-black text-white drop-shadow-md">{tempName}</h2>
