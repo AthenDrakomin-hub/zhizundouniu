@@ -10,10 +10,15 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Connect to the main server port 3000
-// Initialize socket connection dynamically based on the current origin
-// Since Nginx proxies /socket.io/ to the backend, we can just connect to '/' or omit the URL
-const socket: Socket = io(import.meta.env.PROD ? window.location.origin.replace('admin.', 'app.') : 'http://localhost:3000', {
+const getSocketUrl = () => {
+  if (!import.meta.env.PROD) return 'http://localhost:3000';
+  if (window.location.hostname.startsWith('admin.')) {
+    return window.location.origin.replace('admin.', 'app.');
+  }
+  return window.location.origin;
+};
+
+const socket: Socket = io(getSocketUrl(), {
   path: '/socket.io/'
 });
 
@@ -55,20 +60,31 @@ export default function App() {
       setRoom(roomData);
     });
 
+    socket.on('connect_error', (err) => {
+      showToast('连接服务器失败，请检查网络或后端服务状态: ' + err.message);
+    });
+
     socket.on('error', (msg) => {
-      alert(msg);
+      showToast('错误: ' + msg);
     });
 
     return () => {
       socket.off('adminLoginSuccess');
+      socket.off('systemConfigUpdated');
       socket.off('adminRoomsUpdate');
       socket.off('roomUpdate');
+      socket.off('connect_error');
       socket.off('error');
     };
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!socket.connected) {
+      showToast('⚠️ 服务器尚未连接，请稍后再试');
+      return;
+    }
+    showToast('正在登入...');
     socket.emit('adminLogin', { adminKey });
   };
 
