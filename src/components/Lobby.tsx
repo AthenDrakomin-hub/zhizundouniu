@@ -293,7 +293,7 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
               if (newCount >= 5) {
                 setHiddenAdminClick(0);
                 showToast('已进入开发者/管理模式');
-                window.open('/admin/', '_blank');
+                window.open(window.location.origin.replace('app.', 'admin.'), '_blank');
               } else if (newCount >= 3) {
                 showToast(`再点击 ${5 - newCount} 次进入管理端`);
               }
