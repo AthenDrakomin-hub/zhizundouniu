@@ -10,11 +10,14 @@ async function startServer() {
 
   // Add CORS headers to Express
   app.use((req, res, next) => {
-    const origin = req.headers.origin || '*';
-    res.header('Access-Control-Allow-Origin', origin);
+    const origin = req.headers.origin;
+    if (origin === 'https://admin.yefeng.us.cc' || origin === 'https://app.yefeng.us.cc') {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
     } else {
@@ -25,9 +28,7 @@ async function startServer() {
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
-      origin: (origin, callback) => {
-        callback(null, true);
-      },
+      origin: ["https://admin.yefeng.us.cc", "https://app.yefeng.us.cc"],
       methods: ["GET", "POST", "OPTIONS"],
       credentials: true
     }
