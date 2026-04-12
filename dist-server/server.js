@@ -332,6 +332,19 @@ async function setupGameServer(io) {
       saveRoomToDB(newRoom);
       io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
     });
+    socket.on("adminDeleteRoom", ({ roomId }) => {
+      if (!socket.rooms.has("admin_global")) {
+        console.warn(`[Security] \u62E6\u622A\u5230\u975E\u7BA1\u7406\u5458 Socket ${socket.id} \u5C1D\u8BD5\u6267\u884C adminDeleteRoom`);
+        return;
+      }
+      const room = rooms.get(roomId);
+      if (room) {
+        io.to(roomId).emit("kicked", "\u7BA1\u7406\u5458\u89E3\u6563\u4E86\u8BE5\u623F\u95F4");
+        io.in(roomId).disconnectSockets(true);
+        rooms.delete(roomId);
+        io.to("admin_global").emit("adminRoomsUpdate", Array.from(rooms.values()));
+      }
+    });
     socket.on("adminJoinRoom", ({ roomId }) => {
       const room = rooms.get(roomId);
       if (room) {
@@ -343,15 +356,23 @@ async function setupGameServer(io) {
       for (const [roomId, room] of rooms.entries()) {
         const playerIndex = room.players.findIndex((p) => p.socketId === socket.id);
         if (playerIndex !== -1) {
-          if (room.status !== "waiting" && room.status !== "finished") {
-            room.players[playerIndex].isDisconnected = true;
-          } else {
-            room.players.splice(playerIndex, 1);
-            if (room.players.length === 0) {
-              rooms.delete(roomId);
-            }
-          }
+          room.players[playerIndex].isDisconnected = true;
           broadcastRoomUpdate(roomId);
+          if (room.status === "waiting" || room.status === "finished") {
+            setTimeout(() => {
+              const currentRoom = rooms.get(roomId);
+              if (currentRoom) {
+                const pIndex = currentRoom.players.findIndex((p) => p.socketId === socket.id && p.isDisconnected);
+                if (pIndex !== -1) {
+                  currentRoom.players.splice(pIndex, 1);
+                  if (currentRoom.players.length === 0) {
+                    rooms.delete(roomId);
+                  }
+                  broadcastRoomUpdate(roomId);
+                }
+              }
+            }, 3 * 60 * 1e3);
+          }
         }
       }
     });
@@ -359,20 +380,22 @@ async function setupGameServer(io) {
       let room = rooms.get(roomId);
       const ip = socket.handshake.address;
       if (room) {
+        const existingPlayerById = room.players.find((p) => p.id === user.id);
+        if (existingPlayerById) {
+          existingPlayerById.isDisconnected = false;
+          existingPlayerById.socketId = socket.id;
+          existingPlayerById.ip = ip;
+          existingPlayerById.name = user.name;
+          existingPlayerById.avatar = user.avatar;
+          socket.join(roomId);
+          socket.emit("reconnectSuccess", existingPlayerById);
+          broadcastRoomUpdate(roomId);
+          return;
+        }
         const existingPlayerByName = room.players.find((p) => p.name === user.name);
         if (existingPlayerByName) {
-          if (existingPlayerByName.isDisconnected) {
-            existingPlayerByName.isDisconnected = false;
-            existingPlayerByName.socketId = socket.id;
-            existingPlayerByName.ip = ip;
-            socket.join(roomId);
-            socket.emit("reconnectSuccess", existingPlayerByName);
-            broadcastRoomUpdate(roomId);
-            return;
-          } else {
-            socket.emit("joinError", "\u8BE5\u5927\u540D\u5DF2\u5728\u623F\u95F4\u5185\uFF0C\u4E0D\u80FD\u91CD\u540D");
-            return;
-          }
+          socket.emit("joinError", "\u8BE5\u5927\u540D\u5DF2\u5728\u623F\u95F4\u5185\uFF0C\u4E0D\u80FD\u91CD\u540D");
+          return;
         }
         if (room.players.length >= room.config.maxPlayers) {
           socket.emit("joinError", "\u623F\u95F4\u5DF2\u6EE1");

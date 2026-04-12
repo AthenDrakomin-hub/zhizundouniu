@@ -237,6 +237,22 @@ export async function setupGameServer(io: Server) {
       io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
     });
 
+    socket.on('adminDeleteRoom', ({ roomId }) => {
+      if (!socket.rooms.has('admin_global')) {
+        console.warn(`[Security] 拦截到非管理员 Socket ${socket.id} 尝试执行 adminDeleteRoom`);
+        return;
+      }
+      
+      const room = rooms.get(roomId);
+      if (room) {
+        // Kick all players in this room
+        io.to(roomId).emit('kicked', '管理员解散了该房间');
+        io.in(roomId).disconnectSockets(true);
+        rooms.delete(roomId);
+        io.to('admin_global').emit('adminRoomsUpdate', Array.from(rooms.values()));
+      }
+    });
+
     socket.on('adminJoinRoom', ({ roomId }) => {
       const room = rooms.get(roomId);
       if (room) {
@@ -250,17 +266,25 @@ export async function setupGameServer(io: Server) {
       for (const [roomId, room] of rooms.entries()) {
         const playerIndex = room.players.findIndex((p: any) => p.socketId === socket.id);
         if (playerIndex !== -1) {
-          // If game is in progress, mark them as disconnected instead of removing
-          if (room.status !== 'waiting' && room.status !== 'finished') {
-             room.players[playerIndex].isDisconnected = true;
-          } else {
-             // If waiting or finished, just remove them
-             room.players.splice(playerIndex, 1);
-             if (room.players.length === 0) {
-               rooms.delete(roomId);
-             }
-          }
+          room.players[playerIndex].isDisconnected = true;
           broadcastRoomUpdate(roomId);
+
+          // 延迟 3 分钟清理未开始/已结束的掉线玩家
+          if (room.status === 'waiting' || room.status === 'finished') {
+            setTimeout(() => {
+              const currentRoom = rooms.get(roomId);
+              if (currentRoom) {
+                const pIndex = currentRoom.players.findIndex((p: any) => p.socketId === socket.id && p.isDisconnected);
+                if (pIndex !== -1) {
+                  currentRoom.players.splice(pIndex, 1);
+                  if (currentRoom.players.length === 0) {
+                    rooms.delete(roomId);
+                  }
+                  broadcastRoomUpdate(roomId);
+                }
+              }
+            }, 3 * 60 * 1000);
+          }
         }
       }
     });
@@ -270,24 +294,27 @@ export async function setupGameServer(io: Server) {
       const ip = socket.handshake.address;
 
       if (room) {
-        // 检查是否重名
+        // 先检查是否是同一个用户 (基于 ID，处理页面刷新等重连情况)
+        const existingPlayerById = room.players.find((p: any) => p.id === user.id);
+        if (existingPlayerById) {
+          // 允许重连或顶替，接管原座位
+          existingPlayerById.isDisconnected = false;
+          existingPlayerById.socketId = socket.id;
+          existingPlayerById.ip = ip;
+          existingPlayerById.name = user.name;
+          existingPlayerById.avatar = user.avatar;
+          socket.join(roomId);
+          socket.emit('reconnectSuccess', existingPlayerById);
+          broadcastRoomUpdate(roomId);
+          return;
+        }
+
+        // 检查是否重名 (不同 ID 但同名)
         const existingPlayerByName = room.players.find((p: any) => p.name === user.name);
 
         if (existingPlayerByName) {
-          if (existingPlayerByName.isDisconnected) {
-            // 允许重连，接管原座位
-            existingPlayerByName.isDisconnected = false;
-            existingPlayerByName.socketId = socket.id;
-            existingPlayerByName.ip = ip;
-            socket.join(roomId);
-            socket.emit('reconnectSuccess', existingPlayerByName);
-            broadcastRoomUpdate(roomId);
-            return;
-          } else {
-            // 在线重名，拒绝加入
-            socket.emit('joinError', '该大名已在房间内，不能重名');
-            return;
-          }
+          socket.emit('joinError', '该大名已在房间内，不能重名');
+          return;
         }
 
         if (room.players.length >= room.config.maxPlayers) {

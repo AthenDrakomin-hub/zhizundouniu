@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight, X } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight, X, Trash2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Room, Card } from '../../src/types';
@@ -89,6 +89,13 @@ export default function App() {
 
   const handleCreateRoom = () => {
     socket.emit('adminCreateRoom');
+  };
+
+  const handleDeleteRoom = (roomId: string) => {
+    if (confirm(`确定要解散房间 ${roomId} 吗？此操作不可恢复！`)) {
+      socket.emit('adminDeleteRoom', { roomId });
+      showToast(`已解散房间 ${roomId}`);
+    }
   };
 
   const handleJoinRoom = (roomId: string) => {
@@ -287,10 +294,21 @@ export default function App() {
                     <span>进度: <span className="text-white">{r.currentRound}</span>/{r.config.totalRounds}</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors">
-                  <ChevronRight className="w-5 h-5" />
+                <div className="flex items-center gap-3">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteRoom(r.id);
+                      }}
+                      className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-red-500/80 hover:text-white text-white/40 transition-colors shadow-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-colors">
+                      <ChevronRight className="w-5 h-5" />
+                    </div>
+                  </div>
                 </div>
-              </div>
             ))}
             {allRooms.length === 0 && (
               <div className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-2xl p-10 text-center flex flex-col items-center justify-center gap-3">
