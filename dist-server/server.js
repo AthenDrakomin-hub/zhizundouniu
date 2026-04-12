@@ -1044,7 +1044,13 @@ async function setupGameServer(io) {
 async function startServer() {
   const app = express2();
   const httpServer = createServer(app);
-  const io = new Server(httpServer);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: ["https://admin.yefeng.us.cc", "https://app.yefeng.us.cc"],
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
   const PORT = process.env.PORT || 3e3;
   await initDB();
   await setupRoutes(app);

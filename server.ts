@@ -9,10 +9,17 @@ async function startServer() {
   const app = express();
 
   const httpServer = createServer(app);
-  // Nginx is now handling the CORS headers and WebSocket upgrade proxying, 
-  // so we can remove the manual Express CORS middleware and Socket.io CORS config
-  // to avoid duplicate header errors.
-  const io = new Server(httpServer);
+  
+  // We MUST configure CORS in Socket.IO because Socket.IO engine itself 
+  // validates the origin and will reject requests if not explicitly allowed,
+  // regardless of what Nginx does at the HTTP layer.
+  const io = new Server(httpServer, {
+    cors: {
+      origin: ["https://admin.yefeng.us.cc", "https://app.yefeng.us.cc"],
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
 
   const PORT = process.env.PORT || 3000;
 
