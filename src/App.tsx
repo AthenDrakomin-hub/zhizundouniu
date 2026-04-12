@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Play, LogOut, CheckCircle2, Trophy, Info, User, Settings, ShieldCheck, Zap, Eye, Crown, Ghost, Volume2, VolumeX, EyeOff, ArrowRight, MessageSquare, Gamepad2, Home, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X } from 'lucide-react';
@@ -816,7 +816,7 @@ export default function App() {
   const positions = ["top-left", "top-right", "mid-left", "mid-right"];
 
   // Helper to detect same IPs
-  const hasSameIpWarning = React.useMemo(() => {
+  const hasSameIpWarning = useMemo(() => {
     if (!room || !room.players || room.players.length < 2) return false;
     const ipCounts = room.players.reduce((acc, p) => {
       if (p.ip) {
@@ -824,7 +824,7 @@ export default function App() {
       }
       return acc;
     }, {} as Record<string, number>);
-    return Object.values(ipCounts).some(count => count > 1);
+    return Object.values(ipCounts).some((count: number) => count > 1);
   }, [room]);
 
   return (
