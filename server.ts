@@ -8,31 +8,11 @@ import { setupGameServer } from './src/server/game.js';
 async function startServer() {
   const app = express();
 
-  // Add CORS headers to Express
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin === 'https://admin.yefeng.us.cc' || origin === 'https://app.yefeng.us.cc') {
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Credentials', 'true');
-    }
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-    } else {
-      next();
-    }
-  });
-
   const httpServer = createServer(app);
-  const io = new Server(httpServer, {
-    cors: {
-      origin: ["https://admin.yefeng.us.cc", "https://app.yefeng.us.cc"],
-      methods: ["GET", "POST", "OPTIONS"],
-      credentials: true
-    }
-  });
+  // Nginx is now handling the CORS headers and WebSocket upgrade proxying, 
+  // so we can remove the manual Express CORS middleware and Socket.io CORS config
+  // to avoid duplicate header errors.
+  const io = new Server(httpServer);
 
   const PORT = process.env.PORT || 3000;
 

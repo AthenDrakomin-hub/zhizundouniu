@@ -1043,28 +1043,8 @@ async function setupGameServer(io) {
 // server.ts
 async function startServer() {
   const app = express2();
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin === "https://admin.yefeng.us.cc" || origin === "https://app.yefeng.us.cc") {
-      res.header("Access-Control-Allow-Origin", origin);
-      res.header("Access-Control-Allow-Credentials", "true");
-    }
-    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    if (req.method === "OPTIONS") {
-      res.sendStatus(200);
-    } else {
-      next();
-    }
-  });
   const httpServer = createServer(app);
-  const io = new Server(httpServer, {
-    cors: {
-      origin: ["https://admin.yefeng.us.cc", "https://app.yefeng.us.cc"],
-      methods: ["GET", "POST", "OPTIONS"],
-      credentials: true
-    }
-  });
+  const io = new Server(httpServer);
   const PORT = process.env.PORT || 3e3;
   await initDB();
   await setupRoutes(app);
