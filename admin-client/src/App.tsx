@@ -12,6 +12,10 @@ function cn(...inputs: ClassValue[]) {
 
 const getSocketUrl = () => {
   if (!import.meta.env.PROD) return 'http://localhost:3000';
+  // Use app.yefeng.us.cc directly for the backend connection to avoid Nginx proxy issues on admin domain
+  if (window.location.hostname.includes('yefeng.us.cc')) {
+    return 'https://app.yefeng.us.cc';
+  }
   if (window.location.hostname.startsWith('admin.')) {
     return window.location.origin.replace('admin.', 'app.');
   }
@@ -19,7 +23,8 @@ const getSocketUrl = () => {
 };
 
 const socket: Socket = io(getSocketUrl(), {
-  path: '/socket.io/'
+  path: '/socket.io/',
+  transports: ['websocket', 'polling']
 });
 
 const SUITS = ['♠', '♥', '♣', '♦'];
@@ -119,6 +124,11 @@ export default function App() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden">
+        {toastMsg && (
+          <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-red-600 border border-red-400 text-white px-8 py-3 rounded-full font-black shadow-[0_0_30px_rgba(220,38,38,0.6)] z-50 text-sm whitespace-nowrap">
+            {toastMsg}
+          </div>
+        )}
         {/* Immersive Background Image */}
         <div className="absolute inset-0 z-[-10]">
           <img src="/images/ui/hou.png" alt="background" loading="lazy" className="w-full h-full object-cover scale-105" />
@@ -179,9 +189,14 @@ export default function App() {
   // 1. 首页：房卡管理与活跃房间列表
   if (!room) {
     const activeRooms = allRooms.filter(r => r.status !== 'game_over');
-    
+
     return (
       <div className="min-h-screen text-white relative overflow-hidden flex justify-center">
+        {toastMsg && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-600 border border-red-400 text-white px-8 py-3 rounded-full font-black shadow-[0_0_30px_rgba(220,38,38,0.6)] z-50 text-sm whitespace-nowrap">
+            {toastMsg}
+          </div>
+        )}
         {/* Immersive Red Bull Background */}
         <div className="absolute inset-0 z-[-10]">
           <img src="/images/ui/hou.png" alt="background" className="w-full h-full object-cover scale-105" />
