@@ -78,11 +78,11 @@ function calculateBull(cards) {
     if (c.value === "K") return 13;
     return parseInt(c.value);
   });
-  if (rawValues.every((v) => v < 5) && rawValues.reduce((a, b) => a + b, 0) <= 10) {
+  if (rawValues.reduce((a, b) => a + b, 0) <= 10) {
     return { type: 13, multiplier: 8 };
   }
   if (cards.every((c) => ["J", "Q", "K"].includes(c.value))) {
-    return { type: 12, multiplier: 5 };
+    return { type: 12, multiplier: 6 };
   }
   const counts = {};
   cards.forEach((c) => counts[c.value] = (counts[c.value] || 0) + 1);
@@ -90,24 +90,22 @@ function calculateBull(cards) {
     return { type: 11, multiplier: 4 };
   }
   let maxBull = -1;
-  for (let i = 0; i < 5; i++) {
-    for (let j = i + 1; j < 5; j++) {
+  for (let i = 0; i < 3; i++) {
+    for (let j = i + 1; j < 4; j++) {
       for (let k = j + 1; k < 5; k++) {
-        const sum3 = values[i] + values[j] + values[k];
-        if (sum3 % 10 === 0) {
-          const remainingIndices = [0, 1, 2, 3, 4].filter((idx) => idx !== i && idx !== j && idx !== k);
-          const sum2 = values[remainingIndices[0]] + values[remainingIndices[1]];
-          const bullValue = sum2 % 10 === 0 ? 10 : sum2 % 10;
-          if (bullValue > maxBull) {
-            maxBull = bullValue;
-          }
+        if ((values[i] + values[j] + values[k]) % 10 === 0) {
+          const remaining = values.filter((_, idx) => idx !== i && idx !== j && idx !== k);
+          let bull = (remaining[0] + remaining[1]) % 10;
+          if (bull === 0) bull = 10;
+          maxBull = Math.max(maxBull, bull);
         }
       }
     }
   }
   if (maxBull === -1) return { type: 0, multiplier: 1 };
-  if (maxBull === 10) return { type: 10, multiplier: 3 };
-  if (maxBull >= 7) return { type: maxBull, multiplier: 2 };
+  if (maxBull === 10) return { type: 10, multiplier: 5 };
+  if (maxBull === 9) return { type: maxBull, multiplier: 3 };
+  if (maxBull === 8 || maxBull === 7) return { type: maxBull, multiplier: 2 };
   return { type: maxBull, multiplier: 1 };
 }
 function pickGoodCard(current4Cards, remainingDeck) {
@@ -137,6 +135,11 @@ function pickBadCard(current4Cards, remainingDeck) {
 
 // src/server/game.ts
 var rooms = /* @__PURE__ */ new Map();
+var systemConfig = {
+  alipayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=alipay_qr_placeholder&color=000000&bgcolor=ffffff",
+  usdtQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=usdt_qr_placeholder&color=000000&bgcolor=ffffff",
+  usdtAddress: "T_YOUR_USDT_ADDRESS_HERE"
+};
 async function setupGameServer(io) {
   const db = getDB();
   const savedRooms = await db.all("SELECT * FROM rooms");
@@ -263,6 +266,18 @@ async function setupGameServer(io) {
         }
       }
     });
+    socket.on("getSystemConfig", () => {
+      socket.emit("systemConfigUpdated", systemConfig);
+    });
+    socket.on("adminUpdateSystemConfig", (newConfig) => {
+      if (!socket.rooms.has("admin_global")) {
+        console.warn(`[Security] Non-admin socket ${socket.id} attempted to update system config`);
+        return;
+      }
+      systemConfig = { ...systemConfig, ...newConfig };
+      io.emit("systemConfigUpdated", systemConfig);
+      console.log(`[Admin] System config updated by ${socket.id}`, systemConfig);
+    });
     socket.on("adminResetAll", async () => {
       if (!socket.rooms.has("admin_global")) {
         console.warn(`[Security] \u62E6\u622A\u5230\u975E\u7BA1\u7406\u5458 Socket ${socket.id} \u5C1D\u8BD5\u6267\u884C adminResetAll`);
@@ -340,7 +355,7 @@ async function setupGameServer(io) {
         }
       }
     });
-    socket.on("joinRoom", ({ roomId, user }) => {
+    socket.on("joinRoom", ({ roomId, user, hasCard }) => {
       let room = rooms.get(roomId);
       const ip = socket.handshake.address;
       if (room) {
@@ -363,9 +378,15 @@ async function setupGameServer(io) {
           socket.emit("joinError", "\u623F\u95F4\u5DF2\u6EE1");
           return;
         }
+        socket.join(roomId);
       }
-      socket.join(roomId);
       if (!room) {
+        if (!hasCard) {
+          socket.emit("joinError", "\u623F\u5361\u4E0D\u8DB3\uFF0C\u8BF7\u524D\u5F80\u3010\u6211\u7684-\u623F\u5361\u5305/\u5546\u57CE\u3011\u83B7\u53D6\u623F\u5361\u540E\u518D\u521B\u5EFA\u623F\u95F4\uFF01");
+          return;
+        }
+        socket.join(roomId);
+        socket.emit("cardDeducted");
         room = {
           id: roomId,
           players: [],
@@ -469,9 +490,9 @@ async function setupGameServer(io) {
         socket.emit("fifthCardRevealed", player.cards[4]);
       }
     });
-    socket.on("0x05", (payload) => {
-      const roomId = payload.r;
-      const userId = payload.u;
+    socket.on("requestFifthCard", (payload) => {
+      const roomId = payload.roomId;
+      const userId = payload.userId;
       const room = rooms.get(roomId);
       if (!room || room.status !== "playing") return;
       const player = room.players.find((p) => p.id === userId);
@@ -1022,11 +1043,22 @@ async function setupGameServer(io) {
 // server.ts
 async function startServer() {
   const app = express2();
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(200);
+    } else {
+      next();
+    }
+  });
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
+      methods: ["GET", "POST", "OPTIONS"],
+      credentials: true
     }
   });
   const PORT = process.env.PORT || 3e3;

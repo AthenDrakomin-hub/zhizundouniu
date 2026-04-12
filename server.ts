@@ -7,11 +7,25 @@ import { setupGameServer } from './src/server/game.js';
 
 async function startServer() {
   const app = express();
+
+  // Add CORS headers to Express
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+    } else {
+      next();
+    }
+  });
+
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
+      methods: ["GET", "POST", "OPTIONS"],
+      credentials: true
     }
   });
 
