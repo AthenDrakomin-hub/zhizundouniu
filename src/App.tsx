@@ -370,10 +370,8 @@ export default function App() {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 3000);
   };
-  const [tempName, setTempName] = useState(() => {
-    return localStorage.getItem('player_name') || `游客${Math.floor(Math.random() * 9000) + 1000}`;
-  });
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('player_id'));
+  const [tempName, setTempName] = useState(() => localStorage.getItem('player_name') || '');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('token'));
   const [isJoined, setIsJoined] = useState(false);
   const [isActivated, setIsActivated] = useState(false);
   const [activationKey, setActivationKey] = useState('');
@@ -384,6 +382,33 @@ export default function App() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(15);
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch('/api/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) {
+            localStorage.setItem('player_id', data.user.id);
+            localStorage.setItem('player_name', data.user.username);
+            localStorage.setItem('player_avatar', data.user.avatar || '/images/ui/head_boy.png');
+            localStorage.setItem('player_cards', data.user.room_cards?.toString() || '0');
+            setTempName(data.user.username);
+            setIsLoggedIn(true);
+          } else {
+          localStorage.removeItem('token');
+          setIsLoggedIn(false);
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+        setIsLoggedIn(false);
+      });
+    }
+  }, []);
   
   // Helper to detect same IPs (moved to top level to avoid React hook violation #310)
   const hasSameIpWarning = useMemo(() => {
@@ -707,21 +732,6 @@ export default function App() {
     }
   };
 
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (roomId.length < 6) return;
-    
-    // Auto-generate an ID if none exists (future: this will be replaced by WeChat openid)
-    const storedId = localStorage.getItem('player_id') || Math.random().toString(36).substr(2, 9);
-    const storedAvatar = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
-    localStorage.setItem('player_id', storedId);
-    localStorage.setItem('player_name', tempName);
-
-    const newUser = { id: storedId, name: tempName, avatar: storedAvatar };
-    // Wait for roomUpdate or error before setting isJoined
-    socket.emit('joinRoom', { roomId, user: newUser });
-  };
-
   const handleReady = () => {
     if (!user || !room) return;
     playSound('click');
@@ -798,19 +808,18 @@ export default function App() {
   };
 
   if (!isJoined) {
-    if (!isLoggedIn) {
-      return <LoginScreen onLogin={() => {
-        setIsLoggedIn(true);
-        setTempName(localStorage.getItem('player_name') || '');
-      }} />;
-    }
     return (
       <Lobby
+        isLoggedIn={isLoggedIn}
+        onLogin={() => {
+          setIsLoggedIn(true);
+          setTempName(localStorage.getItem('player_name') || '');
+        }}
         onJoin={(rId, tName) => {
-          const storedId = localStorage.getItem('player_id') || Math.random().toString(36).substr(2, 9);
+          const storedId = localStorage.getItem('player_id') || '';
           const storedAvatar = localStorage.getItem('player_avatar') || '/images/ui/head_boy.png';
           const cards = parseInt(localStorage.getItem('player_cards') || '0', 10);
-          
+
           const newUser = { id: storedId, name: tName, avatar: storedAvatar };
           socket.emit('joinRoom', { roomId: rId, user: newUser, hasCard: cards > 0 });
         }}
@@ -904,7 +913,11 @@ export default function App() {
           {isSoundEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
         </button>
         <button 
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('player_id');
+            window.location.reload();
+          }}
           className="p-3 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-2xl transition-all border border-red-600/30"
         >
           <LogOut className="w-6 h-6" />

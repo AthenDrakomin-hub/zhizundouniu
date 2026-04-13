@@ -1,117 +1,152 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, Loader2 } from 'lucide-react';
-
-// ==========================================
-// 微信登录配置（老板请看这里）
-// ==========================================
-// 如果您没有公众号，可以去淘宝搜“微信登录API”或者百度搜“免签微信登录接口”。
-// 这种第三方代签平台会给您提供一个 API 地址和 APP_ID。
-// 您只需要把下方的配置改成他们给您的地址即可实现完美的微信一键登录！
-const WECHAT_CONFIG = {
-  // 替换为您购买的免签平台 APPID，或您自己申请的公众号 APPID
-  appId: 'wx_YOUR_APP_ID',
-  // 第三方代签平台的授权跳转地址（这里写的是微信官方的标准地址）
-  // 如果用第三方平台，通常是类似 https://api.xxx.com/oauth2?appid=...
-  authUrl: 'https://open.weixin.qq.com/connect/oauth2/authorize',
-};
+import { LogIn, UserPlus, Loader2, MessageCircle } from 'lucide-react';
 
 export function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    // 1. 检查 URL 中是否有微信重定向回来的 code 参数
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-
-    if (code) {
-      setIsLoading(true);
-      // 2. 有 code，说明用户已经同意授权。
-      // 在真实的生产环境中，这里应该调用您服务器的后端接口（比如 /api/wechat/login），
-      // 把 code 传给后端，后端再去微信服务器换取 OpenID、头像和昵称。
-      
-      // 这里为了演示整个逻辑的闭环，我们做一个模拟：
-      // （实际对接第三方免签 API 时，通常返回的也是包含 openid/nickname/headimgurl 的 JSON）
-      setTimeout(() => {
-        // 假设这是后端用 code 换回来的真实微信数据
-        const mockWechatUser = {
-          openid: `wx_${Math.random().toString(36).substr(2, 9)}`,
-          nickname: `微信用户_${code.substring(0, 4)}`,
-          headimgurl: Math.random() > 0.5 ? '/images/ui/head_boy.png' : '/images/ui/head_girl.png',
-        };
-
-        // 3. 将真实的微信资料写入本地，作为当前账号
-        localStorage.setItem('player_id', mockWechatUser.openid);
-        localStorage.setItem('player_name', mockWechatUser.nickname);
-        localStorage.setItem('player_avatar', mockWechatUser.headimgurl);
-        
-        // 4. 清除 URL 上的 code 参数，让页面看起来干净，然后触发登录
-        window.history.replaceState({}, document.title, window.location.pathname);
-        setIsLoading(false);
-        onLogin();
-      }, 1000);
-    }
-  }, [onLogin]);
-
-  const handleWechatLogin = () => {
-    if (WECHAT_CONFIG.appId === 'wx_YOUR_APP_ID') {
-      // 老板，由于您目前还没有填写真实的 APPID 或者代签接口，
-      // 这里如果直接跳转去微信官方链接会报错 (redirect_uri 参数错误)。
-      // 为了让您能立刻测试进房流程，这里做个弹窗提示，并为您模拟一个微信回调。
-      const confirmMock = window.confirm(
-        '【系统提示】\n\n您尚未配置真实的微信公众号 APPID 或第三方免签接口！\n\n在代码 src/components/LoginScreen.tsx 中填入 API 地址后，点击将真实拉起微信授权。\n\n点击【确定】为您模拟一次微信授权登录的成功回调效果。'
-      );
-      
-      if (confirmMock) {
-        window.location.href = `${window.location.pathname}?code=mock_code_${Math.floor(Math.random() * 1000)}`;
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) {
+      setError('请输入用户名和密码');
       return;
     }
 
-    // 真实的微信授权跳转逻辑（在微信内打开会自动弹出授权窗口，授权后带 code 跳回本页）
-    const redirectUri = encodeURIComponent(window.location.href);
-    const oauthUrl = `${WECHAT_CONFIG.authUrl}?appid=${WECHAT_CONFIG.appId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_userinfo&state=STATE#wechat_redirect`;
-    
-    window.location.href = oauthUrl;
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const endpoint = isRegister ? '/api/register' : '/api/login';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '请求失败');
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('player_id', data.user.id);
+      localStorage.setItem('player_name', data.user.username);
+      localStorage.setItem('player_avatar', data.user.avatar || '/images/ui/head_boy.png');
+      localStorage.setItem('player_cards', data.user.room_cards?.toString() || '0');
+
+      onLogin();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleWechatLogin = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/wechat-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '微信登录失败');
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('player_id', data.user.id);
+      localStorage.setItem('player_name', data.user.username);
+      localStorage.setItem('player_avatar', data.user.avatar || '/images/ui/head_boy.png');
+      localStorage.setItem('player_cards', data.user.room_cards?.toString() || '0');
+
+      onLogin();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#111] overflow-hidden">
+    <div className="w-full h-full min-h-[600px] flex flex-col items-center justify-center relative rounded-3xl overflow-hidden bg-[#111] border border-[#D4AF37]/20 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
       <div className="absolute inset-0 z-0">
-        <img src="/images/ui/qian.png" alt="background" className="w-full h-full object-cover opacity-80" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/90 pointer-events-none" />
+        <img src="/images/ui/qian.png" alt="background" className="w-full h-full object-cover opacity-40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/90 pointer-events-none" />
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 flex flex-col items-center gap-8 w-full max-w-sm px-6"
+        className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6 py-8"
       >
-        <div className="flex flex-col items-center gap-4">
-          <img src="/images/ui/logo3.png" alt="logo" className="w-32 h-32 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] mix-blend-screen" />
-          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFF] to-[#F2C94C] drop-shadow-md tracking-widest">
+        <div className="flex flex-col items-center gap-2">
+          <img src="/images/ui/logo3.png" alt="logo" className="w-24 h-24 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] mix-blend-screen" />
+          <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFF] to-[#F2C94C] drop-shadow-md tracking-widest">
             至尊斗牛
           </h1>
-          <p className="text-[#D4AF37] text-sm font-medium tracking-[0.3em]">顶级房卡棋牌大厅</p>
+          <p className="text-[#D4AF37] text-xs font-medium tracking-[0.3em]">顶级房卡棋牌大厅</p>
         </div>
 
-        {isLoading ? (
-          <div className="flex flex-col items-center gap-3 text-emerald-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-sm font-bold tracking-widest animate-pulse">正在获取微信授权...</span>
-          </div>
-        ) : (
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 bg-black/60 p-6 rounded-2xl border border-[#D4AF37]/20 backdrop-blur-md shadow-2xl">
+          {error && <div className="text-red-500 text-sm text-center font-bold bg-red-500/10 py-2 rounded-lg border border-red-500/20">{error}</div>}
+
+          <input
+            type="text"
+            placeholder="用户名"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full bg-black/60 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-[#F2C94C] outline-none transition-colors shadow-inner"
+          />
+          <input
+            type="password"
+            placeholder="密码"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-black/60 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-[#F2C94C] outline-none transition-colors shadow-inner"
+          />
+
           <button
-            onClick={handleWechatLogin}
-            className="w-full bg-gradient-to-r from-[#07C160] to-[#06AD56] hover:from-[#08D268] hover:to-[#07C160] text-white py-4 rounded-2xl font-black text-xl shadow-[0_10px_30px_rgba(7,193,96,0.4)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-[#08D268]/50"
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-gradient-to-r from-[#D4AF37] to-[#F2C94C] hover:from-[#F2C94C] hover:to-[#D4AF37] text-black py-3 rounded-xl font-black text-lg shadow-[0_5px_15px_rgba(212,175,55,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
           >
-            <MessageCircle className="w-6 h-6 fill-current" /> 微信一键登录
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isRegister ? <UserPlus className="w-5 h-5" /> : <LogIn className="w-5 h-5" />)}
+            {isRegister ? '注册并登录' : '登录'}
           </button>
-        )}
-        
-        <p className="text-white/40 text-xs text-center mt-4">
-          同意获取您的微信头像和昵称用于游戏对局展示
-        </p>
+
+          <button
+            type="button"
+            onClick={() => { setIsRegister(!isRegister); setError(''); }}
+            className="text-[#D4AF37]/80 text-sm hover:text-[#D4AF37] transition-colors"
+          >
+            {isRegister ? '已有账号？去登录' : '没有账号？去注册'}
+          </button>
+          
+          <div className="relative w-full flex items-center justify-center my-2">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+            <span className="relative bg-[#1a1a1a] px-3 text-xs text-white/30 font-medium">OR</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleWechatLogin}
+            disabled={isLoading}
+            className="w-full bg-gradient-to-r from-[#07C160] to-[#06ad56] hover:from-[#06ad56] hover:to-[#07C160] text-white py-3 rounded-xl font-black text-lg shadow-[0_5px_15px_rgba(7,193,96,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-5 h-5" />}
+            微信一键登录
+          </button>
+        </form>
       </motion.div>
     </div>
   );

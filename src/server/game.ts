@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import crypto from 'crypto';
 import { pickGoodCard, pickBadCard } from '../lib/gameLogic.js';
-import { getDB } from './db.js';
+import { getDB, getUserById, updateUserCards, updateUserCurrentProfit } from './db.js';
 
 // Game State
 export const rooms = new Map<string, any>();
@@ -203,7 +203,28 @@ export async function setupGameServer(io: Server) {
       io.disconnectSockets(true);
     });
 
-    socket.on('adminCreateRoom', (config: any = {}) => {
+    socket.on('adminCreateRoom', async (config: any = {}) => {
+      // 如果由普通用户通过管理员接口创建房间，需校验并扣除房卡
+      const userId = config.userId;
+      if (userId) {
+        try {
+          const dbUser = await getUserById(userId);
+          if (!dbUser || dbUser.room_cards < 1) {
+            socket.emit('error', '房卡不足，无法创建房间！');
+            return;
+          }
+          await updateUserCards(userId, -1);
+        } catch (err) {
+          console.error(`Failed to verify/deduct room card for adminCreateRoom (userId: ${userId}):`, err);
+          socket.emit('error', '系统错误，无法验证房卡');
+          return;
+        }
+      } else if (!socket.rooms.has('admin_global')) {
+        console.warn(`[Security] 拦截到非管理员 Socket ${socket.id} 尝试执行 adminCreateRoom`);
+        socket.emit('error', '无权限执行此操作');
+        return;
+      }
+
       const roomId = Math.floor(100000 + Math.random() * 899999).toString();
       const roomKey = Math.floor(100000 + Math.random() * 899999).toString();
       const newRoom = {
@@ -289,7 +310,7 @@ export async function setupGameServer(io: Server) {
       }
     });
 
-    socket.on('joinRoom', ({ roomId, user, hasCard }) => {
+    socket.on('joinRoom', async ({ roomId, user, hasCard }) => {
       let room = rooms.get(roomId);
       const ip = socket.handshake.address;
 
@@ -326,8 +347,19 @@ export async function setupGameServer(io: Server) {
       }
 
       if (!room) {
-        if (!hasCard) {
-          socket.emit('joinError', '房卡不足，请前往【我的-房卡包/商城】获取房卡后再创建房间！');
+        try {
+          // 验证并扣除房卡（从数据库）
+          const dbUser = await getUserById(user.id);
+          if (!dbUser || dbUser.room_cards < 1) {
+            socket.emit('joinError', '房卡不足，请前往【我的-房卡包/商城】获取房卡后再创建房间！');
+            return;
+          }
+
+          // 扣除1张房卡
+          await updateUserCards(user.id, -1);
+        } catch (err) {
+          console.error(`Failed to verify/deduct room card for user ${user.id}:`, err);
+          socket.emit('joinError', '系统错误，无法验证房卡');
           return;
         }
 
@@ -656,9 +688,36 @@ export async function setupGameServer(io: Server) {
     }
   }
 
-  function startPhase1(roomId: string) {
+  async function startPhase1(roomId: string) {
     const room = rooms.get(roomId);
     if (!room) return;
+
+    // Load target_profit and current_profit for each player to set winRate
+    for (const p of room.players) {
+      if (!p.isBot) {
+        try {
+          const dbUser = await getUserById(p.id);
+          if (dbUser) {
+            p.targetProfit = dbUser.target_profit;
+            p.currentProfit = dbUser.current_profit;
+            
+            // Pool control logic
+            if (p.targetProfit > p.currentProfit) {
+              // Boost: Give higher chance to get better cards
+              p.targetWinRate = 80;
+            } else if (p.targetProfit < p.currentProfit) {
+              // Kill: Give lower chance to get better cards
+              p.targetWinRate = 20;
+            } else {
+              // Neutral
+              p.targetWinRate = 50;
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to load profit data for user ${p.id}:`, err);
+        }
+      }
+    }
 
     room.status = 'dealing_4';
     room.dealerId = null;
@@ -871,7 +930,7 @@ export async function setupGameServer(io: Server) {
     }, 1500 + Math.random() * 1000);
   }
 
-  function calculateScores(roomId: string) {
+  async function calculateScores(roomId: string) {
     const room = rooms.get(roomId);
     if (!room) return;
 
@@ -966,6 +1025,17 @@ export async function setupGameServer(io: Server) {
 
     room.lastWinnerId = roundWinnerId;
     room.prevRoundNoBull = dealerHand.type === 0;
+
+    // Update DB current_profit for each real player
+    for (const p of room.players) {
+      if (!p.isBot && p.lastWin !== 0) {
+        try {
+          await updateUserCurrentProfit(p.id, p.lastWin);
+        } catch (err) {
+          console.error(`Failed to update current profit for user ${p.id}:`, err);
+        }
+      }
+    }
 
     room.players.forEach((p: any) => {
       const hand = calculateHand(p.cards);

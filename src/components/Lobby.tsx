@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Home, Gamepad2, User, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X, MessageSquare, Settings, ArrowRight, Copy, MessageCircle as WechatIcon, Crown, Swords, Coins, Hexagon, Sprout, Flame, Volume2, HelpCircle, Users, Key } from 'lucide-react';
+import { Home, Gamepad2, User, Search, RefreshCw, Smartphone, Package, Shield, LayoutGrid, X, MessageSquare, Settings, ArrowRight, Copy, MessageCircle as WechatIcon, Crown, Swords, Coins, Hexagon, Sprout, Flame, Volume2, HelpCircle, Users, Key, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { socket } from '../App';
+import { LoginScreen } from './LoginScreen';
 
 interface LobbyProps {
+  isLoggedIn: boolean;
+  onLogin: () => void;
   onJoin: (roomId: string, name: string) => void;
   tempName: string;
   setTempName: (name: string) => void;
@@ -12,7 +15,7 @@ interface LobbyProps {
   setRoomId: (id: string) => void;
 }
 
-export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: LobbyProps) {
+export function Lobby({ isLoggedIn, onLogin, onJoin, tempName, setTempName, roomId, setRoomId }: LobbyProps) {
   const [activeTab, setActiveTab] = useState<'hall' | 'room' | 'mine'>('hall');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -36,6 +39,12 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
   }, []);
 
   const [cards, setCards] = useState(parseInt(localStorage.getItem('player_cards') || '0', 10));
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setCards(parseInt(localStorage.getItem('player_cards') || '0', 10));
+    }
+  }, [isLoggedIn]);
   const [systemConfig, setSystemConfig] = useState({
     alipayQrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=alipay_qr_placeholder&color=000000&bgcolor=ffffff',
     usdtQrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=usdt_qr_placeholder&color=000000&bgcolor=ffffff',
@@ -72,6 +81,11 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLoggedIn) {
+      setToastMsg('请先登录才能进入房间');
+      setActiveTab('mine');
+      return;
+    }
     if (roomId.length === 6 && tempName) {
       onJoin(roomId, tempName);
     }
@@ -280,8 +294,13 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
 
   const [hiddenAdminClick, setHiddenAdminClick] = useState(0);
 
-  const renderMine = () => (
-    <div className="flex-1 flex flex-col pt-4 px-4 pb-24 gap-4 overflow-y-auto">
+  const renderMine = () => {
+    if (!isLoggedIn) {
+      return <LoginScreen onLogin={onLogin} />;
+    }
+
+    return (
+      <div className="flex-1 flex flex-col pt-4 px-4 pb-24 gap-4 overflow-y-auto">
       {/* Profile Card */}
       <div className="bg-gradient-to-r from-[#3C1B22] to-[#5C2D38] rounded-2xl p-4 border border-[#D4AF37]/50 shadow-[0_10px_20px_rgba(0,0,0,0.5)] flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -314,16 +333,17 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
             <Copy className="w-3 h-3" /> 复制 ID
           </button>
           <button onClick={() => {
-            showToast('正在同步微信资料...');
-            setTimeout(() => {
-              // 在这里预留重新拉取微信授权/资料同步的接口
-              showToast('微信资料已是最新');
-            }, 1000);
-          }} className="bg-gradient-to-r from-[#1A8A7A] to-[#0A4F46] border border-[#D4AF37]/50 text-[#FDFBF7] text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1 mt-1">
-            <RefreshCw className="w-3 h-3" /> 同步资料
-          </button>
+              localStorage.removeItem('token');
+              localStorage.removeItem('player_id');
+              localStorage.removeItem('player_name');
+              localStorage.removeItem('player_avatar');
+              localStorage.removeItem('player_cards');
+              window.location.reload();
+            }} className="bg-gradient-to-r from-red-900 to-red-800 border border-red-500/50 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md active:scale-95 flex items-center justify-center gap-1 mt-1">
+              <LogOut className="w-3 h-3" /> 退出登录
+            </button>
+          </div>
         </div>
-      </div>
 
       {/* Action Grid */}
       <div className="grid grid-cols-2 gap-3 mt-4">
@@ -360,7 +380,8 @@ export function Lobby({ onJoin, tempName, setTempName, roomId, setRoomId }: Lobb
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderPanelContent = () => {
     switch (openPanel) {
