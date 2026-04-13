@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight, X, Trash2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight, X, Trash2, Users } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Room, Card } from '../../src/types';
@@ -17,6 +17,10 @@ const getSocketUrl = () => {
     return 'https://app.yefeng.us.cc';
   }
   return window.location.origin;
+};
+
+const getApiUrl = (path: string) => {
+  return `${getSocketUrl()}${path}`;
 };
 
 const socket: Socket = io(getSocketUrl());
@@ -39,6 +43,79 @@ export default function App() {
     usdtQrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=usdt_qr_placeholder&color=000000&bgcolor=ffffff',
     usdtAddress: 'T_YOUR_USDT_ADDRESS_HERE'
   });
+
+  // User Management State
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/admin/users'), {
+        headers: { 'x-admin-key': adminKey }
+      });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const data = await res.json();
+      setUsers(data.users || []);
+    } catch (err: any) {
+      showToast('获取用户失败: ' + err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (showUserModal) {
+      fetchUsers();
+    }
+  }, [showUserModal]);
+
+  const handleAddCards = async (userId: string) => {
+    const amountStr = prompt('请输入要增加的房卡数量（可输入负数扣除）:');
+    if (!amountStr) return;
+    const amount = parseInt(amountStr);
+    if (isNaN(amount)) {
+      showToast('输入无效');
+      return;
+    }
+    try {
+      const res = await fetch(getApiUrl(`/api/admin/users/${userId}/cards`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': adminKey
+        },
+        body: JSON.stringify({ amount })
+      });
+      if (!res.ok) throw new Error('Failed to update cards');
+      showToast('房卡更新成功');
+      fetchUsers();
+    } catch (err: any) {
+      showToast('操作失败: ' + err.message);
+    }
+  };
+
+  const handleSetTargetProfit = async (userId: string) => {
+    const profitStr = prompt('请输入该玩家的预期目标利润 (当前为系统吃分/吐分依据):');
+    if (!profitStr) return;
+    const targetProfit = parseInt(profitStr);
+    if (isNaN(targetProfit)) {
+      showToast('输入无效');
+      return;
+    }
+    try {
+      const res = await fetch(getApiUrl(`/api/admin/users/${userId}/target-profit`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': adminKey
+        },
+        body: JSON.stringify({ targetProfit })
+      });
+      if (!res.ok) throw new Error('Failed to update target profit');
+      showToast('目标利润设置成功');
+      fetchUsers();
+    } catch (err: any) {
+      showToast('操作失败: ' + err.message);
+    }
+  };
 
   useEffect(() => {
     socket.on('adminLoginSuccess', (rooms: Room[]) => {
@@ -76,6 +153,21 @@ export default function App() {
       socket.off('error');
     };
   }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, key: 'alipayQrUrl' | 'usdtQrUrl') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 200 * 1024) { // limit 200kb
+        showToast('图片太大，请选择小于200KB的图片');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSystemConfig(prev => ({ ...prev, [key]: event.target?.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,44 +234,33 @@ export default function App() {
 
         <div className="relative z-10 w-full max-w-[360px]">
           {/* Glass Card (Dark red tint like screenshot) */}
-          <div className="bg-[#2a0808]/80 backdrop-blur-2xl border border-red-500/20 p-8 rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] relative overflow-hidden">
-            
-            <div className="flex flex-col items-center mb-8">
-              <div className="relative mb-4">
-                {/* Logo with rounded mask and red glow border */}
-                <div className="w-20 h-20 bg-black border border-red-500/50 rounded-2xl overflow-hidden flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.5)] relative z-10">
-                  <img src="/images/ui/logo3.png" alt="Logo" loading="lazy" className="w-full h-full object-cover" />
-                </div>
+          <div className="bg-[#1a0505]/95 backdrop-blur-3xl border border-red-500/30 p-8 rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(220,38,38,0.5)] relative overflow-hidden">
+            <div className="flex flex-col items-center gap-3 mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.6)] border border-red-400/50">
+                <ShieldCheck className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-white/90 mb-1">至尊控制台</h1>
-              <p className="text-white/40 text-[10px] tracking-[0.2em] font-medium uppercase">Supreme Admin Console</p>
+              <div className="text-center">
+                <h1 className="text-2xl font-black tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">至尊后台系统</h1>
+                <p className="text-red-400 text-xs font-bold tracking-[0.2em] mt-1">SUPREME ADMIN CONSOLE</p>
+              </div>
             </div>
-            
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold tracking-widest text-white/50 uppercase px-1">安全认证秘钥</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-white/30 group-focus-within:text-red-400 transition-colors">
-                    <Key className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="password"
-                    placeholder="请输入 admin123"
-                    value={adminKey}
-                    onChange={e => setAdminKey(e.target.value)}
-                    className="w-full bg-[#150505] border border-red-500/20 rounded-2xl py-4 pl-12 pr-4 text-sm font-mono tracking-widest text-white focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 outline-none transition-all placeholder:text-white/20 placeholder:tracking-normal shadow-inner"
-                    autoComplete="new-password"
-                    required
-                  />
-                </div>
+
+            <form onSubmit={handleLogin} className="flex flex-col gap-5">
+              <div>
+                <label className="block text-xs font-bold text-white/80 mb-2 tracking-widest">安全密钥 (ADMIN KEY)</label>
+                <input
+                  type="password"
+                  value={adminKey}
+                  onChange={(e) => setAdminKey(e.target.value)}
+                  className="w-full bg-black/60 border border-red-500/30 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:border-red-400 focus:ring-1 focus:ring-red-400 outline-none transition-all shadow-inner text-center font-mono tracking-widest"
+                  placeholder="••••••••"
+                />
               </div>
-              
-              <button 
-                type="submit" 
-                className="w-full bg-[#10b981] hover:bg-[#059669] text-black font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 group mt-4"
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-black py-4 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.4)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 tracking-widest border border-red-500/50"
               >
-                授权登入
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                验证身份 <ArrowRight className="w-5 h-5" />
               </button>
             </form>
           </div>
@@ -247,26 +328,34 @@ export default function App() {
           </div>
 
           {/* 钥匙生成区与设置区 */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-3 gap-3 mb-8">
             <button
               onClick={handleCreateRoom}
-              className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-black p-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 transition-all border border-red-500/50"
+              className="bg-[#1a0505]/95 hover:bg-black/90 text-white font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.2)] active:scale-95 transition-all border border-red-500/50 hover:border-red-400"
             >
-              <Plus className="w-5 h-5 stroke-[3]" />
-              <span className="tracking-widest">创建新房间</span>
+              <Plus className="w-6 h-6 stroke-[3] text-red-400" />
+              <span className="tracking-widest text-xs text-white/90">创建房间</span>
             </button>
             <button
               onClick={() => setShowConfigModal(true)}
-              className="bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white font-black p-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,0,0,0.5)] active:scale-95 transition-all border border-white/20"
+              className="bg-[#1a0505]/95 hover:bg-black/90 text-white font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,0,0,0.5)] active:scale-95 transition-all border border-white/20 hover:border-white/40"
             >
-              <span className="tracking-widest">系统收款设置</span>
+              <ShieldCheck className="w-6 h-6 text-white/80" />
+              <span className="tracking-widest text-xs text-white/90">收款设置</span>
+            </button>
+            <button
+              onClick={() => setShowUserModal(true)}
+              className="bg-[#1a0505]/95 hover:bg-black/90 text-white font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,0,0,0.5)] active:scale-95 transition-all border border-white/20 hover:border-white/40"
+            >
+              <Users className="w-6 h-6 text-white/80" />
+              <span className="tracking-widest text-xs text-white/90">用户管理</span>
             </button>
           </div>
 
           {/* 列表区 */}
           <div className="flex items-center gap-2 mb-4 px-1">
             <div className="w-1.5 h-4 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-            <h2 className="text-sm font-bold text-white/70 tracking-widest uppercase">所有房间监控</h2>
+            <h2 className="text-sm font-bold text-white/90 tracking-widest uppercase">所有房间监控</h2>
           </div>
           
           <div className="space-y-3">
@@ -274,23 +363,23 @@ export default function App() {
               <div 
                 key={r.id} 
                 onClick={() => handleJoinRoom(r.id)}
-                className="bg-black/40 backdrop-blur-md p-5 rounded-2xl border border-white/10 flex items-center justify-between cursor-pointer hover:border-red-500/50 hover:bg-black/60 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.3)] group"
+                className="bg-[#1a0505]/95 backdrop-blur-md p-5 rounded-2xl border border-white/20 flex items-center justify-between cursor-pointer hover:border-red-500/80 hover:bg-black transition-all shadow-[0_10px_20px_rgba(0,0,0,0.3)] group"
               >
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <span className="font-black text-xl tracking-wider text-white">房号: {r.id}</span>
                     <span className={cn(
-                      "text-[10px] px-2 py-0.5 rounded font-bold tracking-widest",
-                      r.status === 'game_over' ? "bg-white/10 text-white/50" : "bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                      "text-[10px] px-2 py-0.5 rounded font-bold tracking-widest border",
+                      r.status === 'game_over' ? "bg-white/10 text-white/50 border-white/20" : "bg-red-500/20 text-red-400 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
                     )}>
                       {r.status === 'game_over' ? '已结束' : '进行中'}
                     </span>
                   </div>
-                  <div className="text-xs text-white/50 flex items-center gap-3 font-medium tracking-wide">
+                  <div className="text-xs text-white/60 flex items-center gap-3 font-medium tracking-wide">
                     <span className="flex items-center gap-1.5">
                       <Key className="w-3.5 h-3.5 text-red-400" /> 钥匙: <span className="font-mono text-red-400 bg-red-950/50 px-1.5 py-0.5 rounded border border-red-900/50">{r.config.roomKey}</span>
                     </span>
-                    <div className="w-px h-3 bg-white/10" />
+                    <div className="w-px h-3 bg-white/20" />
                     <span>进度: <span className="text-white">{r.currentRound}</span>/{r.config.totalRounds}</span>
                   </div>
                 </div>
@@ -304,58 +393,81 @@ export default function App() {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors border border-transparent group-hover:border-red-500/30">
                       <ChevronRight className="w-5 h-5" />
                     </div>
                   </div>
                 </div>
             ))}
             {allRooms.length === 0 && (
-              <div className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-2xl p-10 text-center flex flex-col items-center justify-center gap-3">
-                <ShieldCheck className="w-10 h-10 text-white/10" />
-                <span className="text-white/30 text-sm font-bold tracking-widest">暂无房间数据</span>
+              <div className="text-center py-12 bg-[#1a0505]/60 backdrop-blur-sm rounded-2xl border border-white/10 shadow-inner">
+                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
+                  <Zap className="w-6 h-6 text-white/20" />
+                </div>
+                <p className="text-white/40 font-bold tracking-widest text-sm">暂无房间运行中</p>
+                <p className="text-white/20 text-xs mt-1">等待玩家创建或手动创建</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* System Config Modal */}
-        {showConfigModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-white/20 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative">
-              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-                <h2 className="font-black tracking-widest text-lg">系统收款设置</h2>
-                <button onClick={() => setShowConfigModal(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-white/50 mb-2 tracking-widest">支付宝收款码路径/URL</label>
-                  <input 
-                    type="text" 
-                    value={systemConfig.alipayQrUrl} 
-                    onChange={e => setSystemConfig({...systemConfig, alipayQrUrl: e.target.value})}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500"
-                  />
-                  <p className="text-[10px] text-white/30 mt-1">例如: /images/ui/alipay_qr.png</p>
+        {/* Config Modal */}
+          {showConfigModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <div className="bg-[#1a0505]/95 border border-red-500/30 rounded-3xl w-full max-w-md overflow-hidden shadow-[0_0_50px_rgba(220,38,38,0.2)] relative">
+                <div className="p-5 border-b border-red-500/20 flex justify-between items-center bg-black/60">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-6 h-6 text-red-400" />
+                    <h2 className="font-black tracking-widest text-xl text-white">系统收款设置</h2>
+                  </div>
+                  <button onClick={() => setShowConfigModal(false)} className="text-white/60 hover:text-white bg-white/5 hover:bg-white/20 p-2 rounded-full transition-colors"><X className="w-5 h-5"/></button>
                 </div>
+                <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-white/50 mb-2 tracking-widest">USDT收款码路径/URL</label>
-                  <input 
-                    type="text" 
-                    value={systemConfig.usdtQrUrl} 
-                    onChange={e => setSystemConfig({...systemConfig, usdtQrUrl: e.target.value})}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-white/50 mb-2 tracking-widest">USDT (TRC20) 钱包地址</label>
-                  <input 
-                    type="text" 
-                    value={systemConfig.usdtAddress} 
-                    onChange={e => setSystemConfig({...systemConfig, usdtAddress: e.target.value})}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-red-500"
-                  />
-                </div>
+                    <label className="block text-xs font-bold text-white/80 mb-2 tracking-widest">支付宝收款码路径/URL或上传</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={systemConfig.alipayQrUrl}
+                        onChange={e => setSystemConfig({...systemConfig, alipayQrUrl: e.target.value})}
+                        className="flex-1 bg-black/60 border border-white/20 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500 text-white"
+                      />
+                      <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white px-4 py-3 rounded-xl border border-white/20 text-xs font-bold whitespace-nowrap transition-colors">
+                        上传图片
+                        <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'alipayQrUrl')} />
+                      </label>
+                    </div>
+                    {systemConfig.alipayQrUrl && systemConfig.alipayQrUrl.startsWith('data:image') && (
+                      <img src={systemConfig.alipayQrUrl} alt="alipay" className="w-16 h-16 object-contain mt-2 rounded border border-white/10" />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-white/80 mb-2 tracking-widest">USDT收款码路径/URL或上传</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={systemConfig.usdtQrUrl}
+                        onChange={e => setSystemConfig({...systemConfig, usdtQrUrl: e.target.value})}
+                        className="flex-1 bg-black/60 border border-white/20 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500 text-white"
+                      />
+                      <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white px-4 py-3 rounded-xl border border-white/20 text-xs font-bold whitespace-nowrap transition-colors">
+                        上传图片
+                        <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'usdtQrUrl')} />
+                      </label>
+                    </div>
+                    {systemConfig.usdtQrUrl && systemConfig.usdtQrUrl.startsWith('data:image') && (
+                      <img src={systemConfig.usdtQrUrl} alt="usdt" className="w-16 h-16 object-contain mt-2 rounded border border-white/10" />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-white/80 mb-2 tracking-widest">USDT (TRC20) 钱包地址</label>
+                    <input
+                      type="text"
+                      value={systemConfig.usdtAddress}
+                      onChange={e => setSystemConfig({...systemConfig, usdtAddress: e.target.value})}
+                      className="w-full bg-black/60 border border-white/20 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-red-500 text-white"
+                    />
+                  </div>
                 <button 
                   onClick={() => {
                     socket.emit('adminUpdateSystemConfig', systemConfig);
@@ -366,6 +478,57 @@ export default function App() {
                 >
                   保存设置
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* User Management Modal */}
+        {showUserModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="bg-[#1a0505]/95 border border-red-500/30 rounded-3xl w-full max-w-3xl overflow-hidden shadow-[0_0_50px_rgba(220,38,38,0.2)] relative max-h-[85vh] flex flex-col">
+              <div className="p-5 border-b border-red-500/20 flex justify-between items-center bg-black/60 shrink-0">
+                <div className="flex items-center gap-3">
+                  <Users className="w-6 h-6 text-red-400" />
+                  <h2 className="font-black tracking-widest text-xl text-white">用户管理中心</h2>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={fetchUsers} className="text-sm font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-colors">刷新列表</button>
+                  <button onClick={() => setShowUserModal(false)} className="text-white/60 hover:text-white bg-white/5 hover:bg-white/20 p-2 rounded-full transition-colors"><X className="w-5 h-5"/></button>
+                </div>
+              </div>
+              <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
+                {users.length === 0 ? (
+                  <div className="text-center text-white/50 py-10 text-sm font-bold tracking-widest">暂无用户</div>
+                ) : (
+                  <div className="space-y-4">
+                    {users.map(u => (
+                      <div key={u.id} className="bg-black/60 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 hover:border-red-500/50 transition-all shadow-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <img src={u.avatar || '/images/ui/head_boy.png'} alt="avatar" className="w-10 h-10 rounded-full border border-white/20 object-cover" />
+                            <span className="font-black text-lg text-white">{u.username}</span>
+                            {u.role === 'admin' && <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-black tracking-wider border border-red-500/30">ADMIN</span>}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-white/80 font-medium pl-1">
+                            <span className="text-white/50 text-xs">ID: {u.id}</span>
+                            <span className="flex items-center gap-1"><span className="text-white/50">房卡:</span> <span className="text-yellow-400 font-black text-base">{u.room_cards}</span></span>
+                            <span className="flex items-center gap-1"><span className="text-white/50">总盈亏:</span> <span className={cn("font-black", u.current_profit > 0 ? "text-green-400" : u.current_profit < 0 ? "text-red-400" : "text-white")}>{u.current_profit}</span></span>
+                            <span className="flex items-center gap-1"><span className="text-white/50">点杀目标:</span> <span className="text-purple-400 font-black">{u.target_profit}</span></span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 shrink-0">
+                          <button onClick={() => handleAddCards(u.id)} className="bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 border border-yellow-500/30 px-4 py-2 rounded-xl text-sm font-black active:scale-95 transition-all">
+                            发放房卡
+                          </button>
+                          <button onClick={() => handleSetTargetProfit(u.id)} className="bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 border border-purple-500/30 px-4 py-2 rounded-xl text-sm font-black active:scale-95 transition-all">
+                            设目标盈亏
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
