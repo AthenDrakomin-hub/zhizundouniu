@@ -1181,53 +1181,18 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-4 w-full max-w-xs relative z-10">
-                  {!currentPlayer?.ready ? (
-                    <button
-                      onClick={handleReady}
-                      className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-4 rounded-2xl font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all active:scale-95 text-lg border border-emerald-400/50"
-                    >
-                      准备开始
-                    </button>
-                  ) : !isActivated ? (
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6">
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="bg-black/40 backdrop-blur-2xl p-10 rounded-[3rem] border border-white/10 shadow-2xl w-full max-w-md text-center"
-          >
-            <div className="w-20 h-20 bg-yellow-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-yellow-500/30">
-              <ShieldCheck className="w-10 h-10 text-yellow-500" />
-            </div>
-            <h1 className="text-3xl font-black mb-2">房卡激活</h1>
-            <p className="text-slate-400 mb-8 text-sm">请输入房主提供的 6 位激活码进入房间</p>
-            
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={activationKey}
-                onChange={(e) => setActivationKey(e.target.value.toUpperCase())}
-                placeholder="输入激活码"
-                className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-center text-2xl font-black tracking-[0.5em] focus:border-yellow-500 outline-none transition-all placeholder:tracking-normal placeholder:text-sm"
-                maxLength={6}
-              />
-              <button
-                onClick={handleActivate}
-                className="w-full bg-yellow-600 hover:bg-yellow-500 text-black py-4 rounded-2xl font-black text-lg shadow-xl shadow-yellow-600/20 transition-all active:scale-95"
-              >
-                立即激活
-              </button>
-            </div>
-
-            <div className="mt-8 pt-8 border-t border-white/5">
-              <p className="text-xs text-slate-500 mb-4">没有激活码？</p>
-              <button className="text-yellow-500 font-bold text-sm hover:underline">联系房主购买房卡</button>
-            </div>
-          </motion.div>
-        </div>
-      ) : (
-                    <button
-                      disabled
-                      className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 py-4 rounded-2xl font-black flex items-center justify-center gap-2 text-lg shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]"
-                    >
+                    {!currentPlayer?.ready ? (
+                      <button
+                        onClick={handleReady}
+                        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-4 rounded-2xl font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all active:scale-95 text-lg border border-emerald-400/50"
+                      >
+                        准备开始
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 py-4 rounded-2xl font-black flex items-center justify-center gap-2 text-lg shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]"
+                      >
                       <CheckCircle2 className="w-5 h-5" /> 已准备，等待中
                     </button>
                   )}
