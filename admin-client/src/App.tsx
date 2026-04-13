@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ShieldCheck, ArrowRight, Zap, Key, Plus, ChevronRight, X, Trash2, Users } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Zap, Users, Plus, X, Trash2, ChevronRight } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Room, Card } from '../../src/types';
@@ -376,12 +376,14 @@ export default function App() {
                     </span>
                   </div>
                   <div className="text-xs text-white/60 flex items-center gap-3 font-medium tracking-wide">
-                    <span className="flex items-center gap-1.5">
-                      <Key className="w-3.5 h-3.5 text-red-400" /> 钥匙: <span className="font-mono text-red-400 bg-red-950/50 px-1.5 py-0.5 rounded border border-red-900/50">{r.config.roomKey}</span>
-                    </span>
-                    <div className="w-px h-3 bg-white/20" />
-                    <span>进度: <span className="text-white">{r.currentRound}</span>/{r.config.totalRounds}</span>
-                  </div>
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" /> {r.players.length}/{r.config.maxPlayers} 人
+                      </span>
+                      <div className="w-px h-3 bg-white/20" />
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5" /> 进度: <span className="text-white">{r.currentRound}</span>/{r.config.totalRounds}
+                      </span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <button 
